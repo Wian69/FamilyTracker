@@ -1,0 +1,99 @@
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+
+> Task :app:compileDebugKotlin FAILED
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:679:2 Missing '}
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:73:9 Unresolved reference: setupMap
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:74:9 Unresolved reference: fetchUserFamilyId
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:87:27 Unresolved reference: TextView
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:87:56 Variable expected
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:96:13 Unresolved reference: clearHistory
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:113:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:123:25 Unresolved reference: savePlaceToFamily
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:134:9 Unresolved reference: savePlaceToFamily
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:137:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:159:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:165:27 Unresolved reference: CustomMyLocationOverlay
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:185:5 Modifier 'inner' is not applicable to 'local class'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:204:25 Unresolved reference: showBottomSheetForMarker
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:217:33 Unresolved reference: getActivityEmoji
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:219:39 Unresolved reference: drawBadgeOnBitmap
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:220:45 Overload resolution ambiguity: 
+public constructor BitmapDrawable(p0: Resources!, p1: Bitmap!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: InputStream!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: String!) defined in android.graphics.drawable.BitmapDrawable
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:245:17 Unresolved reference: fetchAddressForMarker
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:256:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:285:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:303:29 Unresolved reference: getActivityEmoji
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:323:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:333:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:346:17 Unresolved reference: updateFamilyId
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:357:21 Unresolved reference: updateFamilyId
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:373:42 Unresolved reference: getCircularBitmap
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:385:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:403:13 Unresolved reference: listenForUpdates
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:404:13 Unresolved reference: listenForPlaces
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:408:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:411:17 Unresolved reference: updateUserMarker
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:414:17 Unresolved reference: updateUserMarker
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:431:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:509:46 Unresolved reference: getCircularBitmap
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:523:44 Unresolved reference: drawBadgeOnBitmap
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:524:39 Overload resolution ambiguity: 
+public constructor BitmapDrawable(p0: Resources!, p1: Bitmap!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: InputStream!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: String!) defined in android.graphics.drawable.BitmapDrawable
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:546:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:585:42 Unresolved reference: getPlaceIcon
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:586:39 Overload resolution ambiguity: 
+public constructor BitmapDrawable(p0: Resources!, p1: Bitmap!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: InputStream!) defined in android.graphics.drawable.BitmapDrawable
+public constructor BitmapDrawable(p0: Resources!, p1: String!) defined in android.graphics.drawable.BitmapDrawable
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:601:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:636:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:657:5 Modifier 'private' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:670:5 Modifier 'override' is not applicable to 'local function'
+e: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/app/src/main/java/com/wiandurandt/familytracker/fragments/MapFragment.kt:675:5 Modifier 'override' is not applicable to 'local function'
+
+[Incubating] Problems report is available at: file:///C:/Users/WianDuRandt/.gemini/antigravity/scratch/FamilyTracker/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.12/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 3s
+18 actionable tasks: 2 executed, 16 up-to-date
