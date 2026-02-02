@@ -37,9 +37,15 @@ object UpdateManager {
         
         db.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val latestVersion = snapshot.child("latest_version_code").getValue(Int::class.java) ?: 0
-                val updateUrl = snapshot.child("update_url").getValue(String::class.java)
+                val latestVersionRaw = snapshot.child("latest_version_code").value
+                val latestVersion = when (latestVersionRaw) {
+                    is Long -> latestVersionRaw.toInt()
+                    is Int -> latestVersionRaw
+                    is String -> latestVersionRaw.toIntOrNull() ?: 0
+                    else -> 0
+                }
                 
+                val updateUrl = snapshot.child("update_url").getValue(String::class.java)
                 val currentVersion = BuildConfig.VERSION_CODE
                 
                 if (latestVersion > currentVersion && !updateUrl.isNullOrEmpty()) {
@@ -146,7 +152,14 @@ object UpdateManager {
         val db = FirebaseDatabase.getInstance(DB_URL).getReference("config")
         db.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val latestVersion = snapshot.child("latest_version_code").getValue(Int::class.java) ?: 0
+                val latestVersionRaw = snapshot.child("latest_version_code").value
+                val latestVersion = when (latestVersionRaw) {
+                    is Long -> latestVersionRaw.toInt()
+                    is Int -> latestVersionRaw
+                    is String -> latestVersionRaw.toIntOrNull() ?: 0
+                    else -> 0
+                }
+                
                 val updateUrl = snapshot.child("update_url").getValue(String::class.java)
                 val currentVersion = BuildConfig.VERSION_CODE
                 
