@@ -55,6 +55,8 @@ object UpdateManager {
                     } else {
                         showUpdateDialog(context, updateUrl)
                     }
+                } else if (!fromBackground) {
+                    Toast.makeText(context, "You are using the latest version! ✅", Toast.LENGTH_SHORT).show()
                 }
             }
             override fun onCancelled(error: DatabaseError) {}

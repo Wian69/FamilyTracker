@@ -61,14 +61,13 @@ class MemberDetailActivity : AppCompatActivity() {
         ref.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val email = snapshot.child("email").getValue(String::class.java) ?: "Unknown"
-                val name = email.substringBefore("@").capitalize()
                 val profileBase64 = snapshot.child("profileBase64").getValue(String::class.java)
                 val battery = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
                 val speed = snapshot.child("speed").getValue(Float::class.java) ?: 0f
                 val lastUp = snapshot.child("lastUpdated").getValue(Long::class.java) ?: 0L
                 val currentPlace = snapshot.child("currentPlace").getValue(String::class.java) ?: "Unknown"
-
-                findViewById<TextView>(R.id.tvDetailName).text = name
+                
+                findViewById<TextView>(R.id.tvDetailName).text = email.substringBefore("@").replaceFirstChar { it.uppercase() }
                 findViewById<TextView>(R.id.tvDetailEmail).text = email
                 findViewById<TextView>(R.id.tvDetailBattery).text = if (battery >= 0) "$battery%" else "..."
                 findViewById<TextView>(R.id.tvDetailSpeed).text = String.format("%.0f km/h", speed * 3.6)
@@ -79,15 +78,23 @@ class MemberDetailActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.tvDetailStatus).text = "$status • $currentPlace"
 
                 // Profile Pic
-                if (profileBase64 != null) {
+                val ivAvatar = findViewById<ImageView>(R.id.ivDetailAvatar)
+                if (!profileBase64.isNullOrEmpty()) {
                     try {
                         val imageBytes = Base64.decode(profileBase64, Base64.DEFAULT)
                         val decodedImage = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
                         Glide.with(this@MemberDetailActivity)
                             .load(decodedImage)
                             .circleCrop()
-                            .into(findViewById<ImageView>(R.id.ivDetailAvatar))
-                    } catch (e: Exception) {}
+                            .placeholder(R.drawable.ic_avatar_placeholder)
+                            .error(R.drawable.ic_avatar_placeholder)
+                            .into(ivAvatar)
+                    } catch (e: Exception) {
+                        ivAvatar.setImageResource(R.drawable.ic_avatar_placeholder)
+                    }
+                } else {
+                    ivAvatar.setImageResource(R.drawable.ic_avatar_placeholder)
+                    ivAvatar.setColorFilter(android.graphics.Color.LTGRAY)
                 }
                 
                 // Update Map Position (Current)

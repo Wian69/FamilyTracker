@@ -23,8 +23,10 @@
                 android:id="@+id/ivProfilePicture"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:src="@mipmap/ic_launcher"
-                android:scaleType="centerCrop" />
+                android:src="@drawable/ic_avatar_placeholder"
+                android:scaleType="centerCrop"
+                android:background="@drawable/circle_bg"
+                android:padding="2dp"/>
                 
         </androidx.cardview.widget.CardView>
         
@@ -163,31 +165,28 @@
 
         <Button
             android:id="@+id/btnEnableLocation"
+            style="@style/ProButton"
             android:layout_width="match_parent"
-            android:layout_height="60dp"
+            android:layout_height="wrap_content"
             android:text="Enable Location Tracking"
-            android:backgroundTint="@color/primary"
-            android:textColor="@color/white"
-            android:elevation="4dp"
+            android:layout_marginTop="24dp"/>
+
+        <Button
+            android:id="@+id/btnCheckUpdate"
+            style="@style/ProButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Check for Updates"
             android:layout_marginTop="16dp"/>
 
         <Button
             android:id="@+id/btnLogout"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Logout"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:textColor="@color/error"/>
-
-        <Button
-            android:id="@+id/btnCheckUpdate"
-            android:layout_width="match_parent"
-            android:layout_height="60dp"
-            android:text="Check for Updates"
-            android:backgroundTint="@color/primary"
-            android:textColor="@color/white"
-            android:elevation="4dp"
-            android:layout_marginTop="16dp"/>
 
         <TextView
             android:id="@+id/tvVersion"

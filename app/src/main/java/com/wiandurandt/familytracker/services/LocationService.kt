@@ -137,8 +137,8 @@ class LocationService : Service() {
         val lon = snapshot.child("longitude").getValue(Double::class.java)
         val userEmail = snapshot.child("email").getValue(String::class.java) ?: "Family Member"
         
-        // Simple heuristic name extract
-        val userName = userEmail.substringBefore("@").capitalize()
+        // Modern name extract
+        val userName = userEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
         
         // 1. SOS / Panic Check
         val panicActive = snapshot.child("panicActive").getValue(Boolean::class.java) ?: false
@@ -300,7 +300,7 @@ class LocationService : Service() {
         
         // CHECK SELF GEOFENCE
         val myEmail = FirebaseAuth.getInstance().currentUser?.email ?: "Me"
-        val myName = myEmail.substringBefore("@").capitalize()
+        val myName = myEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
         checkGeofenceEntry(uid, myName, location.latitude, location.longitude)
         
         // SAVE HISTORY (Every 5 mins)

@@ -47,34 +47,35 @@ class FamilyAdapter(
         }
         
         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-        holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
-        holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
+        holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").replaceFirstChar { it.uppercase() }
         holder.tvStatus.text = member.status
-        holder.tvBattery.text = if (member.battery > 0) "${member.battery}%" else ""
+        holder.tvBattery.text = if (member.battery >= 0) "${member.battery}%" else ""
         
         // Online/Status Dot Color
-        val color = if (member.isOnline) 
+        val dotColor = if (member.isOnline) 
             android.graphics.Color.GREEN 
         else 
-            android.graphics.Color.GRAY // or transparent
+            android.graphics.Color.GRAY
             
-        holder.ivDot.setColorFilter(color)
+        holder.ivDot.setColorFilter(dotColor)
 
-        if (member.profileBase64 != null) {
+        if (!member.profileBase64.isNullOrEmpty()) {
             try {
                 val imageBytes = Base64.decode(member.profileBase64, Base64.DEFAULT)
                 val decodedImage = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
                 Glide.with(holder.itemView.context)
                     .load(decodedImage)
                     .circleCrop()
+                    .placeholder(R.drawable.ic_avatar_placeholder)
+                    .error(R.drawable.ic_avatar_placeholder)
                     .into(holder.ivAvatar)
-                holder.ivAvatar.clearColorFilter() // Remove the fallback tint
-                holder.ivAvatar.setPadding(0,0,0,0) // Remove padding
+                holder.ivAvatar.clearColorFilter()
             } catch (e: Exception) {
-                holder.ivAvatar.setImageResource(R.mipmap.ic_launcher)
+                holder.ivAvatar.setImageResource(R.drawable.ic_avatar_placeholder)
             }
         } else {
-            holder.ivAvatar.setImageResource(R.mipmap.ic_launcher)
+            holder.ivAvatar.setImageResource(R.drawable.ic_avatar_placeholder)
+            holder.ivAvatar.setColorFilter(android.graphics.Color.LTGRAY)
         }
     }
 

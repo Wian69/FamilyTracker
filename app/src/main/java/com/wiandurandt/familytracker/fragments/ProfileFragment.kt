@@ -71,11 +71,18 @@ class ProfileFragment : Fragment() {
                                 com.bumptech.glide.Glide.with(ivProfile.context)
                                     .load(decodedImage)
                                     .circleCrop()
+                                    .placeholder(R.drawable.ic_avatar_placeholder)
+                                    .error(R.drawable.ic_avatar_placeholder)
                                     .into(ivProfile)
+                                ivProfile.clearColorFilter()
                             }
                         } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Error loading image", android.widget.Toast.LENGTH_SHORT).show()
+                            ivProfile.setImageResource(R.drawable.ic_avatar_placeholder)
+                            ivProfile.setColorFilter(android.graphics.Color.LTGRAY)
                         }
+                    } else {
+                        ivProfile.setImageResource(R.drawable.ic_avatar_placeholder)
+                        ivProfile.setColorFilter(android.graphics.Color.LTGRAY)
                     }
                 }
                 override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
@@ -149,7 +156,12 @@ class ProfileFragment : Fragment() {
                 view?.findViewById<android.widget.ImageView>(R.id.ivProfilePicture)?.let { iv ->
                     val imageBytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
                     val decodedImage = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                    com.bumptech.glide.Glide.with(this).load(decodedImage).circleCrop().into(iv)
+                    com.bumptech.glide.Glide.with(this)
+                        .load(decodedImage)
+                        .circleCrop()
+                        .placeholder(R.drawable.ic_avatar_placeholder)
+                        .into(iv)
+                    iv.clearColorFilter()
                 }
             }
             .addOnFailureListener {

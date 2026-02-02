@@ -14,7 +14,7 @@
         <item name="colorSurface">@color/surface</item>
         
         <!-- Status Bar -->
-        <item name="android:statusBarColor">@color/primary_variant</item>
+        <item name="android:statusBarColor">#0F111A</item> <!-- Deep Midnight -->
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
@@ -26,5 +26,13 @@
         <item name="cardElevation">4dp</item>
         <item name="android:layout_margin">8dp</item>
         <item name="cardBackgroundColor">@color/surface</item>
+    </style>
+    <!-- Button Style -->
+    <style name="ProButton" parent="Widget.Material3.Button">
+        <item name="cornerRadius">12dp</item>
+        <item name="backgroundTint">@color/primary</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingVertical">14dp</item>
     </style>
 </resources>
