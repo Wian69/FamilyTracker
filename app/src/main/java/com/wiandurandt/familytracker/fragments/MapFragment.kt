@@ -9,6 +9,7 @@ import android.preference.PreferenceManager
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.google.firebase.auth.FirebaseAuth
@@ -71,7 +72,7 @@ class MapFragment : Fragment() {
         database = FirebaseDatabase.getInstance(DB_URL).getReference("users")
 
         setupMap()
-        fetchUserFamilyId() // This was already here, keep it.
+        fetchUserFamilyId() 
 
         view.findViewById<View>(R.id.btnCenter).setOnClickListener {
             val location = locationOverlay.myLocation
@@ -79,113 +80,13 @@ class MapFragment : Fragment() {
                 locationOverlay.enableFollowLocation()
                 map.controller.animateTo(location)
                 focusedMemberUid = null // Reset focus to self
-                clearHistory() // Clear history when recentering
             } else {
                 Toast.makeText(requireContext(), "Waiting for location...", Toast.LENGTH_SHORT).show()
             }
         }
-        
-        view.findViewById<View>(R.id.btnHistory).setOnClickListener {
-            toggleHistory()
-        }
-
-        view.findViewById<View>(R.id.btnPanic).setOnClickListener {
-            triggerPanic()
-        }
     }
 
-    private fun triggerPanic() {
-        val uid = auth.currentUser?.uid ?: return
-        val userRef = database.child(uid)
-        
-        val updates = HashMap<String, Any>()
-        updates["panicActive"] = true
-        updates["panicTimestamp"] = ServerValue.TIMESTAMP
-        
-        userRef.updateChildren(updates).addOnSuccessListener {
-            Toast.makeText(context, "🚨 SOS SENT! EVERYONE NOTIFIED.", Toast.LENGTH_LONG).show()
-            // Optional: reset after 10 seconds?
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                userRef.child("panicActive").setValue(false)
-            }, 30000) // 30 seconds of alert
-        }.addOnFailureListener {
-            Toast.makeText(context, "Crisis! SOS Failed to send.", Toast.LENGTH_SHORT).show()
-        }
-    }
-    
     private var focusedMemberUid: String? = null
-    private var historyOverlay: org.osmdroid.views.overlay.Polyline? = null
-    private var isHistoryVisible = false
-    
-    private fun toggleHistory() {
-        if (isHistoryVisible) {
-            clearHistory()
-            return
-        }
-        
-        val uidToCheck = focusedMemberUid ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
-        
-        // Fetch History for TODAY
-        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val dateKey = sdf.format(java.util.Date())
-        
-        val db = com.google.firebase.database.FirebaseDatabase.getInstance("https://familiy-tracker-default-rtdb.firebaseio.com/")
-        val ref = db.getReference("history").child(uidToCheck).child(dateKey)
-        
-        Toast.makeText(context, "Loading history...", Toast.LENGTH_SHORT).show()
-        
-        ref.addListenerForSingleValueEvent(object : com.google.firebase.database.ValueEventListener {
-            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
-                val points = ArrayList<GeoPoint>()
-                for (child in snapshot.children) {
-                    val lat = child.child("lat").getValue(Double::class.java)
-                    val lon = child.child("lon").getValue(Double::class.java)
-                    if (lat != null && lon != null) {
-                        points.add(GeoPoint(lat, lon))
-                    }
-                }
-                
-                if (points.isNotEmpty()) {
-                    drawHistoryLine(points)
-                } else {
-                    Toast.makeText(context, "No history found for today.", Toast.LENGTH_SHORT).show()
-                }
-            }
-            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
-        })
-    }
-    
-    private fun drawHistoryLine(points: ArrayList<GeoPoint>) {
-        clearHistory() // Remove old lines
-        
-        historyOverlay = org.osmdroid.views.overlay.Polyline()
-        historyOverlay?.setPoints(points)
-        historyOverlay?.outlinePaint?.color = android.graphics.Color.BLUE
-        historyOverlay?.outlinePaint?.strokeWidth = 10f
-        
-        map.overlays.add(0, historyOverlay) // Add at bottom
-        map.invalidate()
-        isHistoryVisible = true
-        
-        view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)?.backgroundTintList = 
-            android.content.res.ColorStateList.valueOf(android.graphics.Color.BLUE)
-        view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)?.setColorFilter(android.graphics.Color.WHITE)
-    }
-    
-    private fun clearHistory() {
-        if (historyOverlay != null) {
-            map.overlays.remove(historyOverlay)
-            map.invalidate()
-            historyOverlay = null
-        }
-        isHistoryVisible = false
-        val surfaceColor = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.surface)
-        val primaryColor = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary)
-        
-        val btnHistory = view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)
-        btnHistory?.backgroundTintList = android.content.res.ColorStateList.valueOf(surfaceColor)
-        btnHistory?.setColorFilter(primaryColor)
-    }
 
     private fun savePlaceToFirebase(name: String, lat: Double, lon: Double, radius: Double) {
         if (currentFamilyId == null) {
@@ -236,7 +137,7 @@ class MapFragment : Fragment() {
     private fun setupMap() {
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-        map.controller.setZoom(20.0) // Higher zoom for more detail (stores/businesses)
+        map.controller.setZoom(15.0) // Reverted zoom level
 
         // Use Custom Overlay
         locationOverlay = CustomMyLocationOverlay(GpsMyLocationProvider(requireContext()), map)
@@ -320,7 +221,7 @@ class MapFragment : Fragment() {
                 
                 // Fetch Address
                 fetchAddressForMarker(myMeMarker!!, location.latitude, location.longitude, data)
-
+                
                 map.postInvalidate()
             }
         }
@@ -591,9 +492,6 @@ class MapFragment : Fragment() {
 
                 val cachedBitmap = userBitmaps[uid]
                 if (cachedBitmap != null) {
-                    // Note: We are using relatedObject for DATA now.
-                    // We need a way to store the emoji state separate from the data map?
-                    // Or just add "lastEmoji" to the map data.
                     val lastEmoji = data["lastEmoji"] as? String
                     
                     if (lastEmoji != activityEmoji) {
@@ -605,18 +503,6 @@ class MapFragment : Fragment() {
                 }
             }
             map.invalidate()
-        } else {
-             // Debug: User is in family but has no location
-             val email = snapshot.child("email").getValue(String::class.java) ?: "Member"
-             val hasLat = snapshot.hasChild("latitude")
-             
-             if (!hasLat) {
-                 android.util.Log.d("MapFragment", "User $email is in family but has no location yet.")
-                 // Only toast if it's likely a new addition to avoid spam loop
-                 if (context != null) {
-                     // Toast.makeText(context, "$email joined but needs to enable Location.", Toast.LENGTH_SHORT).show()
-                 }
-             }
         }
     }
 

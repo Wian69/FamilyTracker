@@ -53,7 +53,7 @@ class MemberDetailActivity : AppCompatActivity() {
         map = findViewById(R.id.mapHistory)
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-        map.controller.setZoom(18.0) // Higher zoom for detail
+        map.controller.setZoom(15.0) // Reverted zoom for detail
     }
 
     private fun listenToUserUpdates() {

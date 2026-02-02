@@ -107,6 +107,9 @@ class ProfileFragment : Fragment() {
         switch.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("notifications_enabled", isChecked).apply()
         }
+        
+        // SET VERSION
+        view.findViewById<TextView>(R.id.tvVersion).text = "Version v${com.wiandurandt.familytracker.BuildConfig.VERSION_NAME}"
     }
 
     private fun uploadImage(uri: android.net.Uri) {
