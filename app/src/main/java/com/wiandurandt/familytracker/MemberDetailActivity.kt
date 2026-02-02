@@ -63,14 +63,14 @@ class MemberDetailActivity : AppCompatActivity() {
                 val email = snapshot.child("email").getValue(String::class.java) ?: "Unknown"
                 val name = email.substringBefore("@").capitalize()
                 val profileBase64 = snapshot.child("profileBase64").getValue(String::class.java)
-                val battery = snapshot.child("battery").getValue(Int::class.java) ?: -1
+                val battery = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
                 val speed = snapshot.child("speed").getValue(Float::class.java) ?: 0f
                 val lastUp = snapshot.child("lastUpdated").getValue(Long::class.java) ?: 0L
                 val currentPlace = snapshot.child("currentPlace").getValue(String::class.java) ?: "Unknown"
 
                 findViewById<TextView>(R.id.tvDetailName).text = name
                 findViewById<TextView>(R.id.tvDetailEmail).text = email
-                findViewById<TextView>(R.id.tvDetailBattery).text = if (battery > 0) "$battery%" else "..."
+                findViewById<TextView>(R.id.tvDetailBattery).text = if (battery >= 0) "$battery%" else "..."
                 findViewById<TextView>(R.id.tvDetailSpeed).text = String.format("%.0f km/h", speed * 3.6)
                 
                 // Status Text
@@ -94,9 +94,10 @@ class MemberDetailActivity : AppCompatActivity() {
                 val lat = snapshot.child("latitude").getValue(Double::class.java)
                 val lon = snapshot.child("longitude").getValue(Double::class.java)
                 if (lat != null && lon != null) {
-                    // Only center if we haven't actively dragged? Or just center once?
-                    // Let's create a marker for current position
-                    // Clear previous "Current" markers? For now, we rely on history mainly
+                    // We'll let history handle most markers, but ensure we center if it's the first load
+                    if (map.overlays.isEmpty()) {
+                        map.controller.setCenter(GeoPoint(lat, lon))
+                    }
                 }
             }
             override fun onCancelled(error: DatabaseError) {}
@@ -104,14 +105,13 @@ class MemberDetailActivity : AppCompatActivity() {
     }
 
     private fun loadHistory() {
-        // Construct today's date string (Match format in LocationService)
-        // Assume YYYYMMDD
         val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
         val dateParams = sdf.format(Date())
         
         val historyRef = FirebaseDatabase.getInstance(DB_URL).getReference("history").child(userId!!).child(dateParams)
         
-        historyRef.addListenerForSingleValueEvent(object : ValueEventListener {
+        // Change to real-time updates so path updates while viewing
+        historyRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val points = ArrayList<GeoPoint>()
                 for (child in snapshot.children) {
@@ -123,6 +123,9 @@ class MemberDetailActivity : AppCompatActivity() {
                 }
                 
                 if (points.isNotEmpty()) {
+                    // Clear previous path/markers before redraw
+                    map.overlays.clear()
+
                     // Draw Path
                     val line = Polyline()
                     line.setPoints(points)
@@ -130,21 +133,19 @@ class MemberDetailActivity : AppCompatActivity() {
                     line.outlinePaint.strokeWidth = 10f
                     map.overlays.add(line)
                     
-                    // Zoom to fit
-                   // map.zoomToBoundingBox(line.bounds, true) 
-                   // (Bounding Box logic can be tricky with OSMDroid async, simply center on last point)
                    map.controller.setCenter(points.last())
                    
                    // Add Start/End Markers
                    val startMarker = Marker(map)
                    startMarker.position = points.first()
                    startMarker.title = "Start of Day"
-                   startMarker.icon = androidx.core.content.ContextCompat.getDrawable(this@MemberDetailActivity, org.osmdroid.library.R.drawable.person) // Fallback
+                   startMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                    map.overlays.add(startMarker)
                    
                    val endMarker = Marker(map)
                    endMarker.position = points.last()
-                   endMarker.title = "Current"
+                   endMarker.title = "Current Position"
+                   endMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                    map.overlays.add(endMarker)
                    
                    map.invalidate()

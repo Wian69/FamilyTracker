@@ -50,7 +50,7 @@ class FamilyAdapter(
         holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
         holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
         holder.tvStatus.text = member.status
-        holder.tvBattery.text = if (member.battery > 0) "🔋 ${member.battery}%" else ""
+        holder.tvBattery.text = if (member.battery > 0) "${member.battery}%" else ""
         
         // Online/Status Dot Color
         val color = if (member.isOnline) 
