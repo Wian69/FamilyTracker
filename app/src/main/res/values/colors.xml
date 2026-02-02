@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Professional Dark Theme Palette -->
+    <color name="primary">#304FFE</color> <!-- Bright Blue -->
+    <color name="primary_variant">#0026CA</color>
+    <color name="secondary">#00E5FF</color> <!-- Cyan Accent -->
+    <color name="secondary_variant">#00B2CC</color>
+    
+    <color name="background">#121212</color> <!-- Truly Dark Background -->
+    <color name="surface">#1E1E1E</color>   <!-- Dark Card Surface -->
+    <color name="error">#CF6679</color>
+    
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0BEC5</color> <!-- Blue Grey for secondary text -->
+    
+    <!-- Legacy/Default -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    
+    <color name="ic_launcher_background">#121212</color> <!-- Matches Dark Background -->
+</resources>
