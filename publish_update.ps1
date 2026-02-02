@@ -11,9 +11,12 @@ $codePattern = 'versionCode\s*=\s*(\d+)'
 $namePattern = 'versionName\s*=\s*"([\d\.]+)"'
 
 # 1. Update Version Code
-$newContent = $content -replace $codePattern, { 
-    $v = [int]$args.Groups[1].Value + 1
-    "versionCode = $v" 
+if ($content -match $codePattern) {
+    $v = [int]$Matches[1] + 1
+    $newContent = $content -replace $codePattern, "versionCode = $v"
+}
+else {
+    $newContent = $content
 }
 
 # 2. Update Version Name

@@ -12,11 +12,8 @@ android {
         applicationId = "com.wiandurandt.familytracker"
         minSdk = 24
         targetSdk = 34
-         
-    $v = [int]$args.Groups[1].Value + 1
-    "versionCode = $v" 
-
-        versionName = "1.8"
+        versionCode = 
+        versionName = "1.8.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -48,8 +45,8 @@ android {
     }
     
     lint {
-        isAbortOnError = false
-        isCheckReleaseBuilds = false
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 }
 
