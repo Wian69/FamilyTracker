@@ -26,7 +26,7 @@ class LocationPickerActivity : AppCompatActivity() {
         map = findViewById(R.id.mapPicker)
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-        map.controller.setZoom(18.0)
+        map.controller.setZoom(20.0) // Higher zoom for precision
         
         // Default to a known location or try to get last known?
         // Ideally we pass in the current user location if available via Intent

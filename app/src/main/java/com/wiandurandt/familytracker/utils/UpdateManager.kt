@@ -139,6 +139,25 @@ object UpdateManager {
         }
     }
 
+    /**
+     * Set up a persistent listener for instant notifications when config changes in Firebase.
+     */
+    fun listenForUpdates(context: Context) {
+        val db = FirebaseDatabase.getInstance(DB_URL).getReference("config")
+        db.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val latestVersion = snapshot.child("latest_version_code").getValue(Int::class.java) ?: 0
+                val updateUrl = snapshot.child("update_url").getValue(String::class.java)
+                val currentVersion = BuildConfig.VERSION_CODE
+                
+                if (latestVersion > currentVersion && !updateUrl.isNullOrEmpty()) {
+                    showUpdateNotification(context, updateUrl)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
     private fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(CHANNEL_ID, "App Updates", NotificationManager.IMPORTANCE_HIGH)

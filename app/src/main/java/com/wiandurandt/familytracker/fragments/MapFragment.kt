@@ -88,6 +88,29 @@ class MapFragment : Fragment() {
         view.findViewById<View>(R.id.btnHistory).setOnClickListener {
             toggleHistory()
         }
+
+        view.findViewById<View>(R.id.btnPanic).setOnClickListener {
+            triggerPanic()
+        }
+    }
+
+    private fun triggerPanic() {
+        val uid = auth.currentUser?.uid ?: return
+        val userRef = database.child(uid)
+        
+        val updates = HashMap<String, Any>()
+        updates["panicActive"] = true
+        updates["panicTimestamp"] = ServerValue.TIMESTAMP
+        
+        userRef.updateChildren(updates).addOnSuccessListener {
+            Toast.makeText(context, "🚨 SOS SENT! EVERYONE NOTIFIED.", Toast.LENGTH_LONG).show()
+            // Optional: reset after 10 seconds?
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                userRef.child("panicActive").setValue(false)
+            }, 30000) // 30 seconds of alert
+        }.addOnFailureListener {
+            Toast.makeText(context, "Crisis! SOS Failed to send.", Toast.LENGTH_SHORT).show()
+        }
     }
     
     private var focusedMemberUid: String? = null
@@ -213,7 +236,7 @@ class MapFragment : Fragment() {
     private fun setupMap() {
         map.setTileSource(TileSourceFactory.MAPNIK)
         map.setMultiTouchControls(true)
-        map.controller.setZoom(18.0)
+        map.controller.setZoom(20.0) // Higher zoom for more detail (stores/businesses)
 
         // Use Custom Overlay
         locationOverlay = CustomMyLocationOverlay(GpsMyLocationProvider(requireContext()), map)

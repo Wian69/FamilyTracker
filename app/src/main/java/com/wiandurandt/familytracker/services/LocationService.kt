@@ -51,9 +51,8 @@ class LocationService : Service() {
         createNotificationChannel()
         startForeground(12345, createNotification())
         
-        // 3. Background Update Check
-        com.wiandurandt.familytracker.utils.UpdateManager.checkForUpdates(this, fromBackground = true)
-        startPeriodicUpdateCheck()
+        // 3. Instant Background Update Listener
+        com.wiandurandt.familytracker.utils.UpdateManager.listenForUpdates(this)
         
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -129,7 +128,7 @@ class LocationService : Service() {
     
     private fun processUserUpdate(snapshot: DataSnapshot, myUid: String) {
         val userId = snapshot.key ?: return
-        if (userId == myUid) return // Don't notify about myself entering (optional: could enable if desired)
+        if (userId == myUid) return // Don't notify about myself
         
         val userFamilyId = snapshot.child("familyId").getValue(String::class.java)
         if (userFamilyId != myFamilyId) return // Not in my family
@@ -141,9 +140,44 @@ class LocationService : Service() {
         // Simple heuristic name extract
         val userName = userEmail.substringBefore("@").capitalize()
         
+        // 1. SOS / Panic Check
+        val panicActive = snapshot.child("panicActive").getValue(Boolean::class.java) ?: false
+        if (panicActive) {
+            val lastPanicNotify = lastNotificationTime["${userId}_panic"] ?: 0L
+            if (System.currentTimeMillis() - lastPanicNotify > 30000) { // Notify every 30s top
+                lastNotificationTime["${userId}_panic"] = System.currentTimeMillis()
+                sendHighPriorityNotification("🆘 EMERGENCY: $userName needs help!", "SOS Panic Button pressed. Check their location immediately.")
+            }
+        }
+        
+        // 2. Low Battery Check
+        val batteryLevel = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
+        if (batteryLevel in 1..15) {
+            val lastBatNotify = lastNotificationTime["${userId}_battery"] ?: 0L
+            if (System.currentTimeMillis() - lastBatNotify > 120 * 60 * 1000) { // Every 2 hours
+                lastNotificationTime["${userId}_battery"] = System.currentTimeMillis()
+                sendHighPriorityNotification("🔋 Low Battery: $userName", "$userName's phone is at $batteryLevel%. They might go offline soon.")
+            }
+        }
+        
         if (lat != null && lon != null) {
             checkGeofenceEntry(userId, userName, lat, lon)
         }
+    }
+
+    private fun sendHighPriorityNotification(title: String, message: String) {
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val notification = NotificationCompat.Builder(this, "GEOFENCE_CHANNEL")
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(Notification.DEFAULT_ALL)
+            .setVibrate(longArrayOf(0, 500, 200, 500)) // Heavy vibration
+            .setAutoCancel(true)
+            .build()
+            
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
     
     private val userInsideState = ConcurrentHashMap<String, Boolean>() // Key: "userId_placeId" -> isInside
@@ -336,16 +370,6 @@ class LocationService : Service() {
             .build()
     }
 
-    private fun startPeriodicUpdateCheck() {
-        val handler = android.os.Handler(Looper.getMainLooper())
-        val checkTask = object : Runnable {
-            override fun run() {
-                com.wiandurandt.familytracker.utils.UpdateManager.checkForUpdates(this@LocationService, fromBackground = true)
-                handler.postDelayed(this, 120 * 60 * 1000L) // Every 2 Hours
-            }
-        }
-        handler.postDelayed(checkTask, 60 * 60 * 1000L) // First check after 1 hour (startup check already done)
-    }
 
     override fun onDestroy() {
         super.onDestroy()

@@ -26,6 +26,17 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnPanic"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:backgroundTint="#FF5252"
+        app:tint="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/btnHistory"
+        app:layout_constraintEnd_toEndOf="@id/btnHistory" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnHistory"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

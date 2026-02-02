@@ -22,6 +22,8 @@ class AuthActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
+        
+        binding.tvVersion.text = "v${com.wiandurandt.familytracker.BuildConfig.VERSION_NAME}"
 
         if (auth.currentUser != null) {
             startMainActivity()
