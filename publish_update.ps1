@@ -38,7 +38,7 @@ Write-Host "Updated to Version $newVersionName" -ForegroundColor Green
 git add .
 git commit -m "Release v$newVersionName"
 git tag "v$newVersionName"
-git push origin main
+git push origin HEAD
 git push origin "v$newVersionName"
 
 Write-Host "---------------------------------------------------"
