@@ -446,7 +446,7 @@ class MapFragment : Fragment() {
                 marker.position = point
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 marker.title = snapshot.child("email").getValue(String::class.java) ?: "Family Member"
-                marker.icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_launcher_foreground)
+                marker.icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_launcher_foreground_v3)
                 
                 // Click Listener -> Bottom Sheet
                 marker.setOnMarkerClickListener { m, _ -> 
