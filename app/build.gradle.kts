@@ -16,7 +16,7 @@ android {
     $v = [int]$args.Groups[1].Value + 1
     "versionCode = $v" 
 
-        versionName = "1.5"
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
