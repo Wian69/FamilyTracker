@@ -38,6 +38,10 @@ object UpdateManager {
         db.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val latestVersionRaw = snapshot.child("latest_version_code").value
+                val updateUrl = snapshot.child("update_url").getValue(String::class.java)
+                
+                android.util.Log.d("UpdateManager", "Firebase Data: version=$latestVersionRaw, url=$updateUrl")
+                
                 val latestVersion = when (latestVersionRaw) {
                     is Long -> latestVersionRaw.toInt()
                     is Int -> latestVersionRaw
@@ -45,8 +49,6 @@ object UpdateManager {
                     else -> 0
                 }
                 
-                
-                val updateUrl = snapshot.child("update_url").getValue(String::class.java)
                 val currentVersion = BuildConfig.VERSION_CODE
                 
                 if (latestVersion > currentVersion && !updateUrl.isNullOrEmpty()) {
@@ -56,10 +58,21 @@ object UpdateManager {
                         showUpdateDialog(context, updateUrl)
                     }
                 } else if (!fromBackground) {
-                    Toast.makeText(context, "You are using the latest version! ✅", Toast.LENGTH_SHORT).show()
+                    if (latestVersion == 0) {
+                        Toast.makeText(context, "Update Check: No data found in Firebase 'config' node.", Toast.LENGTH_LONG).show()
+                    } else if (updateUrl.isNullOrEmpty()) {
+                        Toast.makeText(context, "Update Check: Found version $latestVersion but 'update_url' is missing.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Latest version $latestVersion is already installed (You have $currentVersion).", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
-            override fun onCancelled(error: DatabaseError) {}
+            override fun onCancelled(error: DatabaseError) {
+                if (!fromBackground) {
+                    Toast.makeText(context, "Update Check Failed: ${error.message}", Toast.LENGTH_LONG).show()
+                }
+                android.util.Log.e("UpdateManager", "Database Error: ${error.message}")
+            }
         })
     }
 
