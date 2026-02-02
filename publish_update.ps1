@@ -50,9 +50,11 @@ Write-Host "---------------------------------------------------"
 Write-Host "✅ Pushed v$newVersionName to GitHub."
 Write-Host "⏳ GitHub Actions is now building your APK..."
 Write-Host "---------------------------------------------------"
-Write-Host "1. Go to: https://github.com/YOUR_USER/FamilyTracker/releases"
-Write-Host "2. Copy the 'app-debug.apk' link from the latest release."
-Write-Host "3. Go to Firebase Console -> Realtime Database -> config"
-Write-Host "4. Set 'latest_version_code' to the new code."
-Write-Host "5. Set 'update_url' to the link you copied."
+Write-Host "FIREBASE UPDATE DETAILS:" -ForegroundColor Cyan
+Write-Host "1. Version Code to enter: $v" -ForegroundColor Yellow
+Write-Host "2. Go to: https://github.com/Wian69/FamilyTracker/releases"
+Write-Host "3. Copy the 'app-debug.apk' link from the latest release."
+Write-Host "4. Go to Firebase Console -> Realtime Database -> config"
+Write-Host "5. Set 'latest_version_code' to: $v" -ForegroundColor Yellow
+Write-Host "6. Set 'update_url' to the link you copied."
 Write-Host "---------------------------------------------------"

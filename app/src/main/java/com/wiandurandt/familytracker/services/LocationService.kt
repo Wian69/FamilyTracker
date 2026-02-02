@@ -51,6 +51,10 @@ class LocationService : Service() {
         createNotificationChannel()
         startForeground(12345, createNotification())
         
+        // 3. Background Update Check
+        com.wiandurandt.familytracker.utils.UpdateManager.checkForUpdates(this, fromBackground = true)
+        startPeriodicUpdateCheck()
+        
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 for (location in locationResult.locations) {
@@ -330,6 +334,17 @@ class LocationService : Service() {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .build()
+    }
+
+    private fun startPeriodicUpdateCheck() {
+        val handler = android.os.Handler(Looper.getMainLooper())
+        val checkTask = object : Runnable {
+            override fun run() {
+                com.wiandurandt.familytracker.utils.UpdateManager.checkForUpdates(this@LocationService, fromBackground = true)
+                handler.postDelayed(this, 120 * 60 * 1000L) // Every 2 Hours
+            }
+        }
+        handler.postDelayed(checkTask, 60 * 60 * 1000L) // First check after 1 hour (startup check already done)
     }
 
     override fun onDestroy() {
