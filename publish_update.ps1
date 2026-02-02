@@ -39,6 +39,15 @@ Set-Content $gradleFile $newContent
 
 Write-Host "Updated to Version $newVersionName" -ForegroundColor Green
 
+# 2.5 Verify Build Success
+Write-Host "Verifying build stability..." -ForegroundColor Cyan
+./gradlew assembleDebug
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Build FAILED. Aborting push to ensure GitHub remains stable." -ForegroundColor Red
+    exit
+}
+Write-Host "✅ Build Success!" -ForegroundColor Green
+
 # 3. Git Commands
 git add .
 git commit -m "Release v$newVersionName"
