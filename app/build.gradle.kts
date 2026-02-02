@@ -12,19 +12,32 @@ android {
         applicationId = "com.wiandurandt.familytracker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 20
-        versionName = "1.8.12"
+        versionCode = 21
+        versionName = "1.8.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "android"
+            keyAlias = "key0"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
