@@ -75,7 +75,8 @@ object UpdateManager {
                     } else if (updateUrl.isNullOrEmpty()) {
                         Toast.makeText(context, "Update Check: Found version $latestVersion but 'update_url' is missing.", Toast.LENGTH_LONG).show()
                     } else {
-                        Toast.makeText(context, "Latest version $latestVersion is already installed (You have $currentVersion).", Toast.LENGTH_LONG).show()
+                        // Silent when up to date
+                        // Toast.makeText(context, "Latest version $latestVersion is already installed (You have $currentVersion).", Toast.LENGTH_LONG).show()
                     }
                 }
             }
