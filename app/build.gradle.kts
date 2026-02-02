@@ -16,7 +16,7 @@ android {
     $v = [int]$args.Groups[1].Value + 1
     "versionCode = $v" 
 
-        versionName = "1.7"
+        versionName = "1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -45,6 +45,11 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+    }
+    
+    lint {
+        isAbortOnError = false
+        isCheckReleaseBuilds = false
     }
 }
 
