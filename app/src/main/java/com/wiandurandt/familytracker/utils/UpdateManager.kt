@@ -40,7 +40,7 @@ object UpdateManager {
                 val latestVersionRaw = snapshot.child("latest_version_code").value
                 val updateUrl = snapshot.child("update_url").getValue(String::class.java)
                 
-                android.util.Log.d("UpdateManager", "Firebase Data: version=$latestVersionRaw, url=$updateUrl")
+                android.util.Log.d("UpdateManager", "Firebase Path 'config': version=$latestVersionRaw, url=$updateUrl")
                 
                 val latestVersion = when (latestVersionRaw) {
                     is Long -> latestVersionRaw.toInt()
@@ -59,7 +59,19 @@ object UpdateManager {
                     }
                 } else if (!fromBackground) {
                     if (latestVersion == 0) {
-                        Toast.makeText(context, "Update Check: No data found in Firebase 'config' node.", Toast.LENGTH_LONG).show()
+                        // RE-CHECK AT ROOT just in case
+                        snapshot.ref.parent?.addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(rootSnap: DataSnapshot) {
+                                val rootKeys = rootSnap.children.map { it.key }.joinToString(", ")
+                                val msg = if (rootSnap.hasChild("latest_version_code")) {
+                                    "Update Check: Data found AT ROOT instead of in 'config' node. Please move it inside a node named 'config'."
+                                } else {
+                                    "Update Check: No data in 'config'. Found keys at root: [$rootKeys]. Expected a 'config' node."
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                            override fun onCancelled(error: DatabaseError) {}
+                        })
                     } else if (updateUrl.isNullOrEmpty()) {
                         Toast.makeText(context, "Update Check: Found version $latestVersion but 'update_url' is missing.", Toast.LENGTH_LONG).show()
                     } else {
@@ -69,9 +81,10 @@ object UpdateManager {
             }
             override fun onCancelled(error: DatabaseError) {
                 if (!fromBackground) {
-                    Toast.makeText(context, "Update Check Failed: ${error.message}", Toast.LENGTH_LONG).show()
+                    val msg = "Update Check Failed: ${error.message}\nURL used: $DB_URL"
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                 }
-                android.util.Log.e("UpdateManager", "Database Error: ${error.message}")
+                android.util.Log.e("UpdateManager", "Database Error: ${error.message} URL: $DB_URL")
             }
         })
     }
