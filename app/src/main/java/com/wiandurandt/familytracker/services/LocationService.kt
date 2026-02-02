@@ -162,15 +162,19 @@ class LocationService : Service() {
             
             // 1. ENTRY DETECTED (Outside -> Inside)
             if (isInside && !wasInside) {
-                if (shouldNotify(key)) {
-                    android.util.Log.d("GeofenceCheck", "ENTRY Triggered for $userName @ ${place.name}")
-                    
-                    val text = if(userId == FirebaseAuth.getInstance().currentUser?.uid) "You arrived at ${place.name}" else "$userName arrived at ${place.name}"
-                    sendGeofenceNotification(text)
-                    
-                    FirebaseDatabase.getInstance(DB_URL).getReference("users").child(userId).child("currentPlace").setValue(place.name)
+                // Check if this is the FIRST run for this key (Startup)
+                if (!processedInitialState.containsKey(key)) {
+                     // Startup: Just sync state, DO NOT NOTIFY
+                     android.util.Log.d("GeofenceCheck", "Startup Sync: $userName @ ${place.name} (Silent)")
+                     processedInitialState[key] = true
                 } else {
-                    android.util.Log.d("GeofenceCheck", "ENTRY Debounced for $userName @ ${place.name}")
+                    // Normal Operation: Notify
+                    if (shouldNotify(key)) {
+                        android.util.Log.d("GeofenceCheck", "ENTRY Triggered for $userName @ ${place.name}")
+                        val text = if(userId == FirebaseAuth.getInstance().currentUser?.uid) "You arrived at ${place.name}" else "$userName arrived at ${place.name}"
+                        sendGeofenceNotification(text)
+                        FirebaseDatabase.getInstance(DB_URL).getReference("users").child(userId).child("currentPlace").setValue(place.name)
+                    }
                 }
                 userInsideState[key] = true
             }
@@ -178,6 +182,8 @@ class LocationService : Service() {
             else if (!isInside && wasInside) {
                 // If they move > 30m outside the radius to confirm exit (increased buffer to prevent jitter)
                 if (distanceInMeters > place.radius + 30) {
+                     processedInitialState[key] = true // Mark as processed
+                     
                      if (shouldNotify(key)) {
                         android.util.Log.d("GeofenceCheck", "EXIT Triggered for $userName left ${place.name}")
                         
@@ -189,6 +195,12 @@ class LocationService : Service() {
                         android.util.Log.d("GeofenceCheck", "EXIT Debounced for $userName left ${place.name}")
                     }
                     userInsideState[key] = false
+                }
+            }
+            // 3. Just passing through (mark as processed even if outside)
+            else {
+                if (!processedInitialState.containsKey(key)) {
+                     processedInitialState[key] = true
                 }
             }
         }
@@ -242,12 +254,52 @@ class LocationService : Service() {
         updates["lastUpdated"] = System.currentTimeMillis()
         updates["email"] = FirebaseAuth.getInstance().currentUser?.email ?: "" // Fix for "Unknown" name
         
+        // Add Battery Level
+        val batteryPct = getBatteryLevel()
+        updates["batteryLevel"] = batteryPct
+        
         ref.updateChildren(updates)
         
         // CHECK SELF GEOFENCE
         val myEmail = FirebaseAuth.getInstance().currentUser?.email ?: "Me"
         val myName = myEmail.substringBefore("@").capitalize()
         checkGeofenceEntry(uid, myName, location.latitude, location.longitude)
+        
+        // SAVE HISTORY (Every 5 mins)
+        saveHistoryToFirebase(uid, location)
+    }
+    
+    // Fix: Prevent Notification Spam on Startup
+    private val processedInitialState = ConcurrentHashMap<String, Boolean>() 
+    
+    private fun getBatteryLevel(): Int {
+        val bm = getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
+        return bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    }
+
+    private var lastHistorySaveTime = 0L
+    private val HISTORY_INTERVAL_MS = 5 * 60 * 1000L // 5 Minutes
+
+    private fun saveHistoryToFirebase(uid: String, location: android.location.Location) {
+        val now = System.currentTimeMillis()
+        if (now - lastHistorySaveTime > HISTORY_INTERVAL_MS) {
+            lastHistorySaveTime = now
+            
+            // Format Date: yyyyMMdd (Compact)
+            val sdf = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.getDefault())
+            val dateKey = sdf.format(java.util.Date(now))
+            
+            val historyRef = FirebaseDatabase.getInstance(DB_URL).getReference("history")
+                .child(uid).child(dateKey).push() // Auto-ID for timestamp sorting
+                
+            val point = HashMap<String, Any>()
+            point["lat"] = location.latitude
+            point["lon"] = location.longitude
+            point["time"] = now
+            point["speed"] = location.speed
+            
+            historyRef.setValue(point)
+        }
     }
 
     private fun createNotificationChannel() {

@@ -11,7 +11,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.wiandurandt.familytracker.R
 
-class FamilyAdapter(private val members: List<Member>) : RecyclerView.Adapter<FamilyAdapter.ViewHolder>() {
+class FamilyAdapter(
+    private val members: List<Member>,
+    private val onMemberClick: (String) -> Unit
+) : RecyclerView.Adapter<FamilyAdapter.ViewHolder>() {
 
     data class Member(
         val uid: String,
@@ -19,13 +22,15 @@ class FamilyAdapter(private val members: List<Member>) : RecyclerView.Adapter<Fa
         val status: String,
         val lastSeen: Long,
         val profileBase64: String?,
-        val isOnline: Boolean
+        val isOnline: Boolean,
+        val battery: Int // Added battery
     )
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val ivAvatar: ImageView = view.findViewById(R.id.ivMemberAvatar)
         val tvName: TextView = view.findViewById(R.id.tvMemberName)
         val tvStatus: TextView = view.findViewById(R.id.tvMemberStatus)
+        val tvBattery: TextView = view.findViewById(R.id.tvMemberBattery)
         val ivDot: ImageView = view.findViewById(R.id.ivStatusDot)
     }
 
@@ -37,9 +42,15 @@ class FamilyAdapter(private val members: List<Member>) : RecyclerView.Adapter<Fa
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val member = members[position]
         
+        holder.itemView.setOnClickListener {
+            onMemberClick(member.uid)
+        }
+        
         val currentUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
         holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
+        holder.tvName.text = if (member.uid == currentUid) "You" else member.email.substringBefore("@").capitalize()
         holder.tvStatus.text = member.status
+        holder.tvBattery.text = if (member.battery > 0) "🔋 ${member.battery}%" else ""
         
         // Online/Status Dot Color
         val color = if (member.isOnline) 

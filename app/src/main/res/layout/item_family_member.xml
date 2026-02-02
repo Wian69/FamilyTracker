@@ -48,6 +48,16 @@
                 android:textColor="@color/text_secondary"/>
         </LinearLayout>
         
+        <TextView
+            android:id="@+id/tvMemberBattery"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔋 --%"
+            android:textColor="@color/primary"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp"/>
+
         <ImageView
             android:id="@+id/ivStatusDot"
             android:layout_width="12dp"

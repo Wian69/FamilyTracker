@@ -32,7 +32,11 @@ class FamilyFragment : Fragment() {
         
         rvFamily = view.findViewById(R.id.rvFamily)
         rvFamily.layoutManager = LinearLayoutManager(context)
-        adapter = FamilyAdapter(membersList)
+        adapter = FamilyAdapter(membersList) { uid ->
+            val intent = android.content.Intent(requireContext(), com.wiandurandt.familytracker.MemberDetailActivity::class.java)
+            intent.putExtra("UID", uid)
+            startActivity(intent)
+        }
         rvFamily.adapter = adapter
         
         fetchFamilyId()
@@ -95,6 +99,7 @@ class FamilyFragment : Fragment() {
         val currentPlace = snapshot.child("currentPlace").getValue(String::class.java)
         val lastUpdated = snapshot.child("lastUpdated").getValue(Long::class.java) ?: 0L
         val speed = snapshot.child("speed").getValue(Float::class.java) ?: 0f
+        val battery = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
         
         // Status Logic
         val now = System.currentTimeMillis()
@@ -105,8 +110,10 @@ class FamilyFragment : Fragment() {
             status = if (!currentPlace.isNullOrEmpty()) {
                 "At $currentPlace"
             } else {
-                if (speed > 25/3.6) "Driving \uD83D\uDE97 (${(speed*3.6).toInt()} km/h)" 
-                else if (speed > 2) "Moving (${(speed*3.6).toInt()} km/h)" 
+                if (speed > 200/3.6) "Flying ✈️ (${(speed*3.6).toInt()} km/h)"
+                else if (speed > 35/3.6) "Driving 🚗 (${(speed*3.6).toInt()} km/h)" 
+                else if (speed > 10/3.6) "Cycling 🚴 (${(speed*3.6).toInt()} km/h)"
+                else if (speed > 2) "Walking 🚶 (${(speed*3.6).toInt()} km/h)" 
                 else "Stationary"
             }
         } else {
@@ -115,7 +122,7 @@ class FamilyFragment : Fragment() {
             status = "Last seen ${diffMin}m ago"
         }
         
-        val member = FamilyAdapter.Member(uid, displayName, status, lastUpdated, profileBase64, isOnline)
+        val member = FamilyAdapter.Member(uid, displayName, status, lastUpdated, profileBase64, isOnline, battery)
         
         // Update list
         val index = membersList.indexOfFirst { it.uid == uid }

@@ -44,15 +44,10 @@ class PlacesFragment : Fragment() {
             showAddPlaceDialog()
         }
         
-        // Monitor Connection State
+        // Monitor Connection State (Silent)
         FirebaseDatabase.getInstance(DB_URL).getReference(".info/connected").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val connected = snapshot.getValue(Boolean::class.java) ?: false
-                if (connected) {
-                    Toast.makeText(context, "🔥 Firebase CONNECTED", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "❌ Firebase DISCONNECTED", Toast.LENGTH_SHORT).show()
-                }
+                // Silently monitor connectivity
             }
             override fun onCancelled(error: DatabaseError) {}
         })
@@ -165,29 +160,34 @@ class PlacesFragment : Fragment() {
     }
 
 
-    private fun showAddPlaceDialog() {
-        if (androidx.core.app.ActivityCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(requireContext(), "Location permission needed.", Toast.LENGTH_SHORT).show()
-            return
+    private val pickerLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val lat = result.data?.getDoubleExtra("LAT", 0.0) ?: 0.0
+            val lon = result.data?.getDoubleExtra("LON", 0.0) ?: 0.0
+            
+            if (lat != 0.0 && lon != 0.0) {
+                 showDialog(null, lat, lon, "", 200)
+            }
         }
+    }
 
-        Toast.makeText(requireContext(), "Getting GPS location...", Toast.LENGTH_SHORT).show()
-        
+    private fun showAddPlaceDialog() {
+         // Get current location just to center the map initially
         val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(requireActivity())
         
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                showDialog(null, location.latitude, location.longitude, "", 200)
-            } else {
-                fusedLocationClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
-                    .addOnSuccessListener { loc ->
-                        if (loc != null) {
-                            showDialog(null, loc.latitude, loc.longitude, "", 200)
-                        } else {
-                            Toast.makeText(requireContext(), "Could not determine location.", Toast.LENGTH_LONG).show()
-                        }
-                    }
+        if (androidx.core.app.ActivityCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                val intent = android.content.Intent(requireContext(), com.wiandurandt.familytracker.LocationPickerActivity::class.java)
+                if (location != null) {
+                    intent.putExtra("LAT", location.latitude)
+                    intent.putExtra("LON", location.longitude)
+                }
+                pickerLauncher.launch(intent)
             }
+        } else {
+             // Just launch with default center
+             val intent = android.content.Intent(requireContext(), com.wiandurandt.familytracker.LocationPickerActivity::class.java)
+             pickerLauncher.launch(intent)
         }
     }
     

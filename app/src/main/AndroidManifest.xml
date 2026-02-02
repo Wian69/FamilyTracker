@@ -62,6 +62,14 @@
                 android:resource="@xml/provider_paths" />
         </provider>
             
+        <activity
+            android:name=".LocationPickerActivity"
+            android:label="Pick Location"
+            android:theme="@style/Theme.FamilyTracker" />
+        <activity
+            android:name=".MemberDetailActivity"
+            android:label="Member Details"
+            android:theme="@style/Theme.FamilyTracker" />
     </application>
 
 </manifest>

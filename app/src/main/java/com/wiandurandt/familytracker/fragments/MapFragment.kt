@@ -71,17 +71,97 @@ class MapFragment : Fragment() {
         database = FirebaseDatabase.getInstance(DB_URL).getReference("users")
 
         setupMap()
-        fetchUserFamilyId()
+        fetchUserFamilyId() // This was already here, keep it.
 
-        view.findViewById<View>(R.id.btnCenterLocation).setOnClickListener {
+        view.findViewById<View>(R.id.btnCenter).setOnClickListener {
             val location = locationOverlay.myLocation
             if (location != null) {
                 locationOverlay.enableFollowLocation()
                 map.controller.animateTo(location)
+                focusedMemberUid = null // Reset focus to self
+                clearHistory() // Clear history when recentering
             } else {
                 Toast.makeText(requireContext(), "Waiting for location...", Toast.LENGTH_SHORT).show()
             }
         }
+        
+        view.findViewById<View>(R.id.btnHistory).setOnClickListener {
+            toggleHistory()
+        }
+    }
+    
+    private var focusedMemberUid: String? = null
+    private var historyOverlay: org.osmdroid.views.overlay.Polyline? = null
+    private var isHistoryVisible = false
+    
+    private fun toggleHistory() {
+        if (isHistoryVisible) {
+            clearHistory()
+            return
+        }
+        
+        val uidToCheck = focusedMemberUid ?: com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+        
+        // Fetch History for TODAY
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val dateKey = sdf.format(java.util.Date())
+        
+        val db = com.google.firebase.database.FirebaseDatabase.getInstance("https://familiy-tracker-default-rtdb.firebaseio.com/")
+        val ref = db.getReference("history").child(uidToCheck).child(dateKey)
+        
+        Toast.makeText(context, "Loading history...", Toast.LENGTH_SHORT).show()
+        
+        ref.addListenerForSingleValueEvent(object : com.google.firebase.database.ValueEventListener {
+            override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                val points = ArrayList<GeoPoint>()
+                for (child in snapshot.children) {
+                    val lat = child.child("lat").getValue(Double::class.java)
+                    val lon = child.child("lon").getValue(Double::class.java)
+                    if (lat != null && lon != null) {
+                        points.add(GeoPoint(lat, lon))
+                    }
+                }
+                
+                if (points.isNotEmpty()) {
+                    drawHistoryLine(points)
+                } else {
+                    Toast.makeText(context, "No history found for today.", Toast.LENGTH_SHORT).show()
+                }
+            }
+            override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+        })
+    }
+    
+    private fun drawHistoryLine(points: ArrayList<GeoPoint>) {
+        clearHistory() // Remove old lines
+        
+        historyOverlay = org.osmdroid.views.overlay.Polyline()
+        historyOverlay?.setPoints(points)
+        historyOverlay?.outlinePaint?.color = android.graphics.Color.BLUE
+        historyOverlay?.outlinePaint?.strokeWidth = 10f
+        
+        map.overlays.add(0, historyOverlay) // Add at bottom
+        map.invalidate()
+        isHistoryVisible = true
+        
+        view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)?.backgroundTintList = 
+            android.content.res.ColorStateList.valueOf(android.graphics.Color.BLUE)
+        view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)?.setColorFilter(android.graphics.Color.WHITE)
+    }
+    
+    private fun clearHistory() {
+        if (historyOverlay != null) {
+            map.overlays.remove(historyOverlay)
+            map.invalidate()
+            historyOverlay = null
+        }
+        isHistoryVisible = false
+        val surfaceColor = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.surface)
+        val primaryColor = androidx.core.content.ContextCompat.getColor(requireContext(), R.color.primary)
+        
+        val btnHistory = view?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.btnHistory)
+        btnHistory?.backgroundTintList = android.content.res.ColorStateList.valueOf(surfaceColor)
+        btnHistory?.setColorFilter(primaryColor)
     }
 
     private fun savePlaceToFirebase(name: String, lat: Double, lon: Double, radius: Double) {
@@ -140,66 +220,167 @@ class MapFragment : Fragment() {
         locationOverlay.enableMyLocation()
         locationOverlay.enableFollowLocation() // Auto-center
         map.overlays.add(locationOverlay)
+        
+        // Tap to Close Sheet
+        val eventsOverlay = org.osmdroid.views.overlay.MapEventsOverlay(object : org.osmdroid.events.MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
+                view?.findViewById<View>(R.id.cardUserDetails)?.visibility = View.GONE
+                return true
+            }
+            override fun longPressHelper(p: GeoPoint?): Boolean {
+                return false
+            }
+        })
+        map.overlays.add(eventsOverlay)
     }
 
-    // Custom Overlay to prevent rotation and update badges
+    // Custom Overlay: ONLY used to receive location updates and move 'meMarker'.
+    // We suppress the default drawing to avoid "Double Profile" issues.
     inner class CustomMyLocationOverlay(provider: GpsMyLocationProvider, mapView: MapView) 
         : MyLocationNewOverlay(provider, mapView) {
         
-        private var myIcon: Bitmap? = null
+        private var myMeMarker: Marker? = null
 
         override fun onLocationChanged(location: android.location.Location?, source: org.osmdroid.views.overlay.mylocation.IMyLocationProvider?) {
+            // Do NOT call super.onLocationChanged logic that triggers redraws of the default icon
+            // But we DO need to update the location for 'follow location' logic if enabled
             super.onLocationChanged(location, source)
             
-            // Update Icon with Badge if we have the profile pic
-            if (location != null && myRawProfileBitmap != null) {
-                val speedKmh = (location.speed * 3.6).toInt()
-                val emoji = getActivityEmoji(speedKmh)
+            if (location != null) {
+                // Update "Me" Marker
+                if (myMeMarker == null) {
+                    myMeMarker = Marker(map)
+                    myMeMarker?.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    myMeMarker?.id = "ME_MARKER"
+                    
+                    // Allow clicking me -> Show Bottom Sheet
+                    myMeMarker?.setOnMarkerClickListener { marker, mapView -> 
+                        showBottomSheetForMarker(marker)
+                        true
+                    }
+                    
+                    map.overlays.add(myMeMarker)
+                }
                 
-                try {
-                     val badged = drawBadgeOnBitmap(myRawProfileBitmap!!, emoji)
-                     myIcon = badged // Cache for drawing
-                     setPersonIcon(badged)
-                     setDirectionIcon(badged) 
-                     map.postInvalidate()
-                } catch (e: Exception) {}
+                myMeMarker?.position = GeoPoint(location.latitude, location.longitude)
+                myMeMarker?.title = "Me"
+                
+                // Update Icon
+                if (myRawProfileBitmap != null) {
+                    val speedKmh = (location.speed * 3.6).toInt()
+                    val emoji = getActivityEmoji(speedKmh)
+                    try {
+                         val badged = drawBadgeOnBitmap(myRawProfileBitmap!!, emoji)
+                         myMeMarker?.icon = BitmapDrawable(resources, badged)
+                    } catch (e: Exception) {}
+                }
+                
+                // Live Data Construction
+                val batteryPct = (context?.getSystemService(Context.BATTERY_SERVICE) as? android.os.BatteryManager)?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+                val batteryText = if (batteryPct > 0) "$batteryPct%" else "..."
+                val speedKmh = (location.speed * 3.6).toInt()
+                val statusText = if (speedKmh > 2) "Moving" else "At Location"
+                
+                // Store data for click
+                val data = HashMap<String, Any>()
+                data["name"] = "Me"
+                data["battery"] = batteryText
+                data["speed"] = "$speedKmh km/h"
+                data["time"] = "Now"
+                data["isMe"] = true
+                if (myRawProfileBitmap != null) {
+                     // We can't easily put bitmap in map, but we can re-use the imageview source or global var
+                }
+                
+                // We attach the data map to the marker
+                myMeMarker?.relatedObject = data
+                
+                // Fetch Address
+                fetchAddressForMarker(myMeMarker!!, location.latitude, location.longitude, data)
+
+                map.postInvalidate()
             }
         }
         
-        override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-            if (shadow) return
-            
-            val fix = this.lastFix ?: return
-            val icon = myIcon
-            
-            if (icon != null) {
-                val mapPoint = GeoPoint(fix.latitude, fix.longitude)
-                val screenPoint = android.graphics.Point()
-                mapView.projection.toPixels(mapPoint, screenPoint)
+        // DISABLE default drawing
+        override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) { }
+    }
+    
+    // Generalized Address Fetcher
+    private fun fetchAddressForMarker(marker: Marker, lat: Double, lon: Double, data: HashMap<String, Any>) {
+         Thread {
+            try {
+                val geocoder = android.location.Geocoder(requireContext(), java.util.Locale.getDefault())
+                val addresses = geocoder.getFromLocation(lat, lon, 1)
                 
-                val paint = android.graphics.Paint()
-                paint.isAntiAlias = true
-                paint.isFilterBitmap = true
+                var addressText = "Unknown Location"
+                if (!addresses.isNullOrEmpty()) {
+                    val address = addresses[0]
+                    val street = address.thoroughfare ?: ""
+                    val num = address.subThoroughfare ?: ""
+                    val suburb = address.locality ?: address.subLocality ?: ""
+                    addressText = if (street.isNotEmpty()) "$num $street, $suburb".trim() else suburb
+                }
                 
-                // Center the icon
-                val x = screenPoint.x - (icon.width / 2f)
-                val y = screenPoint.y - (icon.height / 2f)
+                data["address"] = addressText
+                marker.relatedObject = data // Update
                 
-                canvas.drawBitmap(icon, x, y, paint)
-            } else {
-                // Fallback to default behavior if no custom icon yet
-                super.draw(canvas, mapView, shadow)
-            }
+                // If currently showing this marker, update UI
+                activity?.runOnUiThread {
+                    if (view?.findViewById<View>(R.id.cardUserDetails)?.visibility == View.VISIBLE) {
+                        // Check if sheet is showing THIS marker? simpler: just refresh if clicked
+                        // For now we just update
+                    }
+                }
+            } catch (e: Exception) {}
+        }.start()
+    }
+
+    private fun showBottomSheetForMarker(marker: Marker) {
+        val sheet = view?.findViewById<View>(R.id.cardUserDetails) ?: return
+        val data = marker.relatedObject as? HashMap<String, Any> ?: return
+        
+        val txtName = sheet.findViewById<android.widget.TextView>(R.id.txtSheetName)
+        val txtAddress = sheet.findViewById<android.widget.TextView>(R.id.txtSheetAddress)
+        val txtBat = sheet.findViewById<android.widget.TextView>(R.id.txtSheetBattery)
+        val txtSpeed = sheet.findViewById<android.widget.TextView>(R.id.txtSheetSpeed)
+        val txtTime = sheet.findViewById<android.widget.TextView>(R.id.txtSheetTime)
+        val imgProfile = sheet.findViewById<android.widget.ImageView>(R.id.imgSheetProfile)
+        
+        txtName.text = data["name"] as? String ?: "Unknown"
+        txtAddress.text = data["address"] as? String ?: "Loading address..."
+        txtBat.text = "🔋 " + (data["battery"] as? String ?: "--%")
+        
+        // Dynamic Emoji for Speed
+        val speedStr = data["speed"] as? String ?: "0 km/h"
+        val speedVal = speedStr.replace(" km/h", "").toIntOrNull() ?: 0
+        val activityEmoji = getActivityEmoji(speedVal)
+        val finalEmoji = if (activityEmoji.isNotEmpty()) activityEmoji else "🚗" // Fallback or Stationary icon? Maybe 🛑 or just Car for default
+        
+        txtSpeed.text = "$finalEmoji " + speedStr
+        txtTime.text = "🕒 " + (data["time"] as? String ?: "Now")
+        
+        // Icon logic
+        if (data["isMe"] == true && myRawProfileBitmap != null) {
+            imgProfile.setImageBitmap(myRawProfileBitmap)
+        } else {
+            // For others, we might need to fetch or use the marker icon
+             imgProfile.setImageDrawable(marker.icon)
         }
+        
+        sheet.visibility = View.VISIBLE
+        
+        // Center Map on User
+        map.controller.animateTo(marker.position)
     }
     
     private fun getActivityEmoji(speedKmh: Int): String {
         return when {
-            speedKmh > 100 -> "✈️"
-            speedKmh > 25 -> "🚗"
-            speedKmh > 7 -> "🚴"
-            speedKmh > 2 -> "🚶"
-            else -> ""
+            speedKmh > 200 -> "✈️" // Flying
+            speedKmh > 35 -> "🚗" // Driving
+            speedKmh > 10 -> "🚴" // Cycling/Running
+            speedKmh > 2 -> "🚶" // Walking/Slow Move
+            else -> "" // Stationary
         }
     }
 
@@ -313,18 +494,24 @@ class MapFragment : Fragment() {
 
         if (lat != null && lon != null) {
             val point = GeoPoint(lat, lon)
+            
+            // Restore missing variables
             val profileBase64 = snapshot.child("profileBase64").getValue(String::class.java)
             val speed = snapshot.child("speed").getValue(Float::class.java) ?: 0f
-            val currentPlace = snapshot.child("currentPlace").getValue(String::class.java)
+            
+            val batteryLevel = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
+            val lastUpdated = snapshot.child("lastUpdated").getValue(Long::class.java) ?: 0L
             
             val speedKmh = (speed * 3.6).toInt()
             val activityEmoji = getActivityEmoji(speedKmh)
             
-            val activityText = if (!currentPlace.isNullOrEmpty()) {
-                "At $currentPlace" 
-            } else {
-                if(speedKmh <= 2) "Stationary" else "Moving" 
-            }
+            // Time Ago Logic
+            val timeDiff = System.currentTimeMillis() - lastUpdated
+            val minutesAgo = timeDiff / (1000 * 60)
+            val timeText = if (minutesAgo < 1) "Now" else "${minutesAgo}m ago"
+            val isStale = minutesAgo > 15
+            
+            val statusIcon = if (isStale) "⚠️" else if (speedKmh > 2) "🚗" else "📍"
 
             val marker: Marker
             if (markersMap.containsKey(uid)) {
@@ -335,12 +522,38 @@ class MapFragment : Fragment() {
                 marker.position = point
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 marker.title = snapshot.child("email").getValue(String::class.java) ?: "Family Member"
-                marker.icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_launcher_foreground) // Default
+                marker.icon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_launcher_foreground)
+                
+                // Click Listener -> Bottom Sheet
+                marker.setOnMarkerClickListener { m, _ -> 
+                    showBottomSheetForMarker(m)
+                    true
+                }
+                
                 map.overlays.add(marker)
                 markersMap[uid] = marker
             }
             
-            marker.setSnippet("$activityText: $speedKmh km/h")
+            // Initial simple snippet
+            val batteryText = if (batteryLevel > 0) "$batteryLevel%" else "..."
+            
+            // Build Data Map
+            val data = HashMap<String, Any>()
+            val name = snapshot.child("email").getValue(String::class.java) ?: "Family Member"
+            // Start shortening email to name if possible, or just use email for now
+            val shortName = name.substringBefore("@")
+            
+            data["name"] = shortName
+            data["battery"] = batteryText
+            data["speed"] = "$speedKmh km/h"
+            data["time"] = timeText
+            data["isMe"] = false
+            
+            // Attach to marker
+            marker.relatedObject = data 
+            
+            // Async Address Fetch (Reuse common function)
+            fetchAddressForMarker(marker, lat, lon, data)
 
             if (profileBase64 != null) {
                 if (!userBitmaps.containsKey(uid)) {
@@ -355,11 +568,15 @@ class MapFragment : Fragment() {
 
                 val cachedBitmap = userBitmaps[uid]
                 if (cachedBitmap != null) {
-                    val lastEmoji = marker.relatedObject as? String
+                    // Note: We are using relatedObject for DATA now.
+                    // We need a way to store the emoji state separate from the data map?
+                    // Or just add "lastEmoji" to the map data.
+                    val lastEmoji = data["lastEmoji"] as? String
+                    
                     if (lastEmoji != activityEmoji) {
                         val badgedBitmap = drawBadgeOnBitmap(cachedBitmap, activityEmoji)
                         marker.icon = BitmapDrawable(resources, badgedBitmap)
-                        marker.relatedObject = activityEmoji
+                        data["lastEmoji"] = activityEmoji // Update state
                         map.invalidate()
                     }
                 }
@@ -386,27 +603,46 @@ class MapFragment : Fragment() {
         
         placesListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                // Clear old Place overlays (Polygons + Place Markers)
                 val toRemove = ArrayList<org.osmdroid.views.overlay.Overlay>()
                 map.overlays.forEach { 
                     if (it is org.osmdroid.views.overlay.Polygon) toRemove.add(it)
+                    if (it is Marker && it.id != null && it.id.startsWith("PLACE_")) toRemove.add(it)
                 }
                 map.overlays.removeAll(toRemove)
 
                 for (place in snapshot.children) {
+                    val name = place.child("name").getValue(String::class.java) ?: "Place"
                     val lat = place.child("latitude").getValue(Double::class.java)
                     val lon = place.child("longitude").getValue(Double::class.java)
                     val radius = place.child("radius").getValue(Double::class.java) ?: 200.0
                     
                     if (lat != null && lon != null) {
+                        val center = GeoPoint(lat, lon)
+                        
+                        // 1. Draw Circle (The Geofence)
                         val circle = org.osmdroid.views.overlay.Polygon()
-                        circle.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(GeoPoint(lat, lon), radius)
-                        
-                        circle.fillPaint.color = android.graphics.Color.parseColor("#4D00E5FF") // 30% Neon Cyan
+                        circle.points = org.osmdroid.views.overlay.Polygon.pointsAsCircle(center, radius)
+                        circle.fillPaint.color = android.graphics.Color.parseColor("#3300E5FF") // 20% Neon Cyan
                         circle.fillPaint.style = android.graphics.Paint.Style.FILL
-                        circle.outlinePaint.color = android.graphics.Color.parseColor("#00E5FF") // Full Neon Cyan
+                        circle.outlinePaint.color = android.graphics.Color.parseColor("#00E5FF") // Solid Neon Cyan
                         circle.outlinePaint.strokeWidth = 2f
-                        
                         map.overlays.add(0, circle)
+                        
+                        // 2. Draw Icon (The Label)
+                        val marker = Marker(map)
+                        marker.position = center
+                        marker.id = "PLACE_${place.key}" // Tag it so we can remove it later
+                        marker.title = name
+                        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        
+                        val iconBitmap = getPlaceIcon(name)
+                        marker.icon = BitmapDrawable(resources, iconBitmap)
+                        
+                        // Optional: Small label window or just title
+                        marker.infoWindow = null // No popup for places, just visual
+                        
+                        map.overlays.add(marker)
                     }
                 }
                 map.invalidate()
@@ -414,6 +650,41 @@ class MapFragment : Fragment() {
             override fun onCancelled(error: DatabaseError) {}
         }
         placesRef!!.addValueEventListener(placesListener!!)
+    }
+    
+    private fun getPlaceIcon(name: String): Bitmap {
+        val size = 80
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = android.graphics.Paint()
+        
+        // 1. Neon Cyan Background Circle
+        paint.color = android.graphics.Color.parseColor("#00E5FF")
+        paint.style = android.graphics.Paint.Style.FILL
+        paint.isAntiAlias = true
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+        
+        // 2. Determine Emoji
+        val lowerName = name.toLowerCase(java.util.Locale.ROOT)
+        val emoji = when {
+            lowerName.contains("home") -> "🏠"
+            lowerName.contains("work") -> "💼"
+            lowerName.contains("school") -> "🎓"
+            lowerName.contains("gym") -> "🏋️"
+            else -> "📍"
+        }
+        
+        // 3. Draw Emoji in White
+        paint.color = android.graphics.Color.WHITE
+        paint.textSize = size * 0.5f
+        paint.textAlign = android.graphics.Paint.Align.CENTER
+        // Vertically center text
+        val textHeight = paint.descent() - paint.ascent()
+        val textOffset = (textHeight / 2) - paint.descent()
+        
+        canvas.drawText(emoji, size / 2f, size / 2f + textOffset, paint)
+        
+        return bitmap
     }
 
     private fun drawBadgeOnBitmap(bitmap: Bitmap, emoji: String): Bitmap {

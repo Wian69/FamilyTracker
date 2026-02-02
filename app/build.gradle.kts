@@ -12,8 +12,11 @@ android {
         applicationId = "com.wiandurandt.familytracker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2"
+         
+    $v = [int]$args.Groups[1].Value + 1
+    "versionCode = $v" 
+
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -33,6 +36,11 @@ android {
     }
     kotlinOptions {
         jvmTarget = "1.8"
+    }
+    
+    // Suppress "obsolete options" warning
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-options")
     }
     buildFeatures {
         viewBinding = true
