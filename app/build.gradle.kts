@@ -12,8 +12,8 @@ android {
         applicationId = "com.wiandurandt.familytracker"
         minSdk = 24
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.8.11"
+        versionCode = 20
+        versionName = "1.8.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -111,9 +111,9 @@
                 android:padding="16dp"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="@color/primary"
+                android:textColor="@color/text_primary"
                 android:drawableTop="@drawable/ic_battery_std"
-                android:drawableTint="@color/primary"/>
+                android:drawableTint="@color/secondary"/>
         </androidx.cardview.widget.CardView>
         
         <androidx.cardview.widget.CardView
@@ -132,9 +132,9 @@
                 android:padding="16dp"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="@color/primary"
+                android:textColor="@color/text_primary"
                 android:drawableTop="@drawable/ic_speed_std"
-                android:drawableTint="@color/primary"/>
+                android:drawableTint="@color/secondary"/>
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
