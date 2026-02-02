@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 class LocationService : Service() {
 
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
     private val DB_URL = "https://familiy-tracker-default-rtdb.firebaseio.com/"
@@ -32,7 +34,19 @@ class LocationService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // 1. Acquire WakeLock to keep CPU running
+        val powerManager = getSystemService(android.os.PowerManager::class.java)
+        wakeLock = powerManager.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "FamilyTracker::LocationWakeLock")
+        wakeLock?.acquire()
+        
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        
+        // 2. Keep Firebase Synced
+        try {
+            FirebaseDatabase.getInstance(DB_URL).getReference("users").keepSynced(true)
+            FirebaseDatabase.getInstance(DB_URL).getReference("families").keepSynced(true)
+        } catch (e: Exception) {}
         
         createNotificationChannel()
         startForeground(12345, createNotification())
@@ -269,6 +283,11 @@ class LocationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {}
     }
 
     override fun onBind(intent: Intent?): IBinder? {

@@ -148,6 +148,29 @@ class MainActivity : AppCompatActivity() {
                     .show()
             }
         }
+        
+        checkBatteryOptimization()
+    }
+    
+    private fun checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(android.os.PowerManager::class.java)
+            val packageName = packageName
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("Disable Battery Optimization")
+                    .setMessage("To ensure location updates work when the screen is off, please allow the app to ignore battery optimizations.")
+                    .setPositiveButton("Allow") { _, _ ->
+                        val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        intent.data = android.net.Uri.parse("package:$packageName")
+                        try {
+                            startActivity(intent)
+                        } catch (e: Exception) {}
+                    }
+                    .setNegativeButton("Later", null)
+                    .show()
+            }
+        }
     }
 
     private fun showPermissionDeniedDialog() {

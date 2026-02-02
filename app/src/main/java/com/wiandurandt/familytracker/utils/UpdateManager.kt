@@ -25,7 +25,7 @@ object UpdateManager {
     fun checkForUpdates(activity: Activity) {
         val remoteConfig = FirebaseRemoteConfig.getInstance()
         val configSettings = FirebaseRemoteConfigSettings.Builder()
-            .setMinimumFetchIntervalInSeconds(0) // 0 Seconds for Instant Testing
+            .setMinimumFetchIntervalInSeconds(3600) // 1 Hour cache (Production)
             .build()
         remoteConfig.setConfigSettingsAsync(configSettings)
         
