@@ -8,7 +8,7 @@ param(
 $DB_URL = "https://familiy-tracker-default-rtdb.firebaseio.com/config.json"
 $REPO_OWNER = "Wian69"
 $REPO_NAME = "FamilyTracker"
-$APK_NAME = "app-debug.apk"
+$APK_NAME = "app-release.apk"
 
 # We read the current version info from build.gradle.kts if not provided
 $gradleContent = Get-Content "app/build.gradle.kts" -Raw
