@@ -11,16 +11,18 @@ $codePattern = 'versionCode\s*=\s*(\d+)'
 $namePattern = 'versionName\s*=\s*"([\d\.]+)"'
 
 # 1. Update Version Code
-if ($content -match $codePattern) {
+if (($content -join "`n") -match $codePattern) {
     $v = [int]$Matches[1] + 1
     $newContent = $content -replace $codePattern, "versionCode = $v"
+    Set-Content $gradleFile $newContent
+    $content = Get-Content $gradleFile # Reload content for subsequent steps
 }
 else {
     $newContent = $content
 }
 
 # 2. Update Version Name
-$currentVersionName = [regex]::Match($content, $namePattern).Groups[1].Value
+$currentVersionName = [regex]::Match(($content -join "`n"), $namePattern).Groups[1].Value
 $parts = $currentVersionName.Split('.')
 if ($VersionName -eq "Patch") {
     $last = [int]$parts[$parts.Length - 1] + 1
