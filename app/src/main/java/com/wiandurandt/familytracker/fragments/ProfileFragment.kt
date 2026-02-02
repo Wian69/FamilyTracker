@@ -98,6 +98,10 @@ class ProfileFragment : Fragment() {
             requireActivity().finish()
         }
         
+        view.findViewById<Button>(R.id.btnCheckUpdate).setOnClickListener {
+             com.wiandurandt.familytracker.utils.UpdateManager.checkForUpdates(requireContext(), false)
+        }
+        
         // Notification Settings
         val switch = view.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchNotifications)
         val prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(requireContext())

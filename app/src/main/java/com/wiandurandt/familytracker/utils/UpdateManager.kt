@@ -163,8 +163,6 @@ object UpdateManager {
                     else -> 0
                 }
                 
-                // DEBUG TOAST
-                Toast.makeText(context, "Update Check: Latest=$latestVersion, App=${BuildConfig.VERSION_CODE}", Toast.LENGTH_SHORT).show()
                 
                 val updateUrl = snapshot.child("update_url").getValue(String::class.java)
                 val currentVersion = BuildConfig.VERSION_CODE
