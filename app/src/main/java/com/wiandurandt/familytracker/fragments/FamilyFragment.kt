@@ -22,6 +22,7 @@ class FamilyFragment : Fragment() {
     private var currentFamilyId: String? = null
     private var usersListener: ChildEventListener? = null
     private var database: DatabaseReference? = null
+    private var familyIdListener: ValueEventListener? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_family, container, false)
@@ -41,27 +42,49 @@ class FamilyFragment : Fragment() {
         
         fetchFamilyId()
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Clean up listeners to prevent leaks and background updates
+        if (database != null && usersListener != null) {
+            database!!.removeEventListener(usersListener!!)
+        }
+        if (familyIdListener != null) {
+            val uid = FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                FirebaseDatabase.getInstance(DB_URL).getReference("users").child(uid).child("familyId").removeEventListener(familyIdListener!!)
+            }
+        }
+    }
     
     private fun fetchFamilyId() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val db = FirebaseDatabase.getInstance(DB_URL)
         
-        db.getReference("users").child(uid).child("familyId").addValueEventListener(object : ValueEventListener {
+        familyIdListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val newFamilyId = snapshot.getValue(String::class.java)
                 if (newFamilyId != null && newFamilyId != currentFamilyId) {
                     currentFamilyId = newFamilyId
+                    // Clear list when switching families or first load can handle it, 
+                    // but for safety let's clear if familyId changes to avoid mixing.
+                    membersList.clear()
+                    adapter.notifyDataSetChanged()
                     listenForMembers(newFamilyId)
                 }
             }
             override fun onCancelled(error: DatabaseError) {}
-        })
+        }
+        
+        db.getReference("users").child(uid).child("familyId").addValueEventListener(familyIdListener!!)
     }
     
     private fun listenForMembers(familyId: String) {
         database = FirebaseDatabase.getInstance(DB_URL).getReference("users")
         
-        // Clean up old listener if exists (not implemented here for simplicity as fragment re-creates usually)
+        if (usersListener != null) {
+             database!!.removeEventListener(usersListener!!)
+        }
         
         usersListener = object : ChildEventListener {
             override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
@@ -124,12 +147,25 @@ class FamilyFragment : Fragment() {
         
         val member = FamilyAdapter.Member(uid, displayName, status, lastUpdated, profileBase64, isOnline, battery)
         
-        // Update list
-        val index = membersList.indexOfFirst { it.uid == uid }
-        if (index != -1) {
-            membersList[index] = member
-            adapter.notifyItemChanged(index)
+        // Check for duplicates by Email/DisplayName
+        val duplicateIndex = membersList.indexOfFirst { it.email == displayName }
+        val uidIndex = membersList.indexOfFirst { it.uid == uid }
+
+        if (uidIndex != -1) {
+            // Update existing entry by UID
+            membersList[uidIndex] = member
+            adapter.notifyItemChanged(uidIndex)
+        } else if (duplicateIndex != -1) {
+            // Duplicate found with different UID!
+            val existing = membersList[duplicateIndex]
+            if (member.lastSeen > existing.lastSeen) {
+                 // New one is newer, replace the old one
+                 membersList[duplicateIndex] = member
+                 adapter.notifyItemChanged(duplicateIndex)
+            } 
+            // Else: existing is newer or same, ignore this stale/duplicate entry
         } else {
+            // New unique member
             membersList.add(member)
             adapter.notifyItemInserted(membersList.size - 1)
         }

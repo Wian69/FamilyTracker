@@ -209,8 +209,9 @@ class LocationService : Service() {
                     // Normal Operation: Notify
                     if (shouldNotify(key)) {
                         android.util.Log.d("GeofenceCheck", "ENTRY Triggered for $userName @ ${place.name}")
-                        val text = if(userId == FirebaseAuth.getInstance().currentUser?.uid) "You arrived at ${place.name}" else "$userName arrived at ${place.name}"
-                        sendGeofenceNotification(text)
+                        if (userId != FirebaseAuth.getInstance().currentUser?.uid) {
+                            sendGeofenceNotification("$userName arrived at ${place.name}")
+                        }
                         FirebaseDatabase.getInstance(DB_URL).getReference("users").child(userId).child("currentPlace").setValue(place.name)
                     }
                 }
@@ -219,14 +220,15 @@ class LocationService : Service() {
             // 2. EXIT DETECTED (Inside -> Outside)
             else if (!isInside && wasInside) {
                 // If they move > 30m outside the radius to confirm exit (increased buffer to prevent jitter)
-                if (distanceInMeters > place.radius + 30) {
+                if (distanceInMeters > place.radius + 100) {
                      processedInitialState[key] = true // Mark as processed
                      
                      if (shouldNotify(key)) {
                         android.util.Log.d("GeofenceCheck", "EXIT Triggered for $userName left ${place.name}")
                         
-                        val text = if(userId == FirebaseAuth.getInstance().currentUser?.uid) "You left ${place.name}" else "$userName left ${place.name}"
-                        sendGeofenceNotification(text)
+                        if (userId != FirebaseAuth.getInstance().currentUser?.uid) {
+                             sendGeofenceNotification("$userName left ${place.name}")
+                        }
                         
                         FirebaseDatabase.getInstance(DB_URL).getReference("users").child(userId).child("currentPlace").setValue(null)
                     } else {
@@ -344,9 +346,9 @@ class LocationService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Channel 1: Foreground Service
             val serviceChannel = NotificationChannel(
-                "LOCATION_CHANNEL",
+                "LOCATION_CHANNEL_SILENT",
                 "Location Tracking",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_MIN
             )
             // Channel 2: Geofence Alerts
             val alertChannel = NotificationChannel(
@@ -362,10 +364,11 @@ class LocationService : Service() {
     }
 
     private fun createNotification(): Notification {
-        return NotificationCompat.Builder(this, "LOCATION_CHANNEL")
-            .setContentTitle("Family Tracker Active")
-            .setContentText("Sharing your location with family...")
+        return NotificationCompat.Builder(this, "LOCATION_CHANNEL_SILENT")
+            .setContentTitle("Family Tracker")
+            .setContentText("Running in background")
             .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
             .build()
     }

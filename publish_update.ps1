@@ -66,7 +66,7 @@ Write-Host "---------------------------------------------------"
 
 # 4. Automate Firebase Update
 Write-Host "Waiting 5 minutes for GitHub Actions build to complete..." -ForegroundColor Yellow
-Start-Sleep -Seconds 300
+# Start-Sleep -Seconds 300
 
 Write-Host "Updating Firebase Config..." -ForegroundColor Cyan
 ./update_firebase_config.ps1 -VersionName $newVersionName
