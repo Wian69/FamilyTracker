@@ -272,8 +272,9 @@ class LocationService : Service() {
     }
 
     private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-            .setMinUpdateIntervalMillis(3000)
+        // High accuracy, faster updates for "Live" feel
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
+            .setMinUpdateIntervalMillis(2000)
             .build()
 
         try {
@@ -298,15 +299,111 @@ class LocationService : Service() {
         val batteryPct = getBatteryLevel()
         updates["batteryLevel"] = batteryPct
         
+
+        
         ref.updateChildren(updates)
+        
+        // CHECK DRIVING EVENTS (Speeding & Braking)
+        checkDrivingEvents(uid, location)
         
         // CHECK SELF GEOFENCE
         val myEmail = FirebaseAuth.getInstance().currentUser?.email ?: "Me"
         val myName = myEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
         checkGeofenceEntry(uid, myName, location.latitude, location.longitude)
         
+        // ADDRESS UPDATE Logic
+        // If we are NOT known to be inside a place, fetch the street address
+        // But only do it every ~2 minutes or if moved > 500m to save data/battery
+        val isInsideAnyPlace = userInsideState.entries.any { it.key.startsWith(uid) && it.value }
+        if (!isInsideAnyPlace) {
+             val now = System.currentTimeMillis()
+             if (now - lastAddressTime > 10000) { // 10 Seconds for debugging (was 2 min)
+                 lastAddressTime = now
+                 Thread {
+                     try {
+                         var address = getAddressFromLocation(location.latitude, location.longitude)
+                         
+                         // Fallback to Nominatim if Native fails
+                         if (address.isNullOrEmpty()) {
+                             android.util.Log.d("LocationService", "Native Geocoder failed, trying Nominatim...")
+                             address = getNominatimAddress(location.latitude, location.longitude)
+                         }
+                         
+                         if (!address.isNullOrEmpty()) {
+                             ref.child("address").setValue(address)
+                         } else {
+                             android.util.Log.e("LocationService", "All Geocoders returned null")
+                         }
+                     } catch (e: Exception) {
+                         android.util.Log.e("LocationService", "Geocoder logic failed: ${e.message}")
+                         e.printStackTrace()
+                     }
+                 }.start()
+             }
+        } else {
+             // If inside place, we can clear address or keep it. 
+             // Let's keep it but maybe it will be overridden by "At Home" in UI.
+             // Ideally we clear it to avoid confusion or old data.
+             ref.child("address").setValue(null)
+        }
+        
         // SAVE HISTORY (Every 5 mins)
         saveHistoryToFirebase(uid, location)
+    }
+
+    private var lastAddressTime = 0L
+    
+    private fun getAddressFromLocation(lat: Double, lon: Double): String? {
+        if (!android.location.Geocoder.isPresent()) return null
+        
+        try {
+            val geocoder = android.location.Geocoder(this, java.util.Locale.getDefault())
+            // Android 13+ has a listener based API, but sticking to sync for simplicity in Service for now
+            // or handling deprecation if needed. For simple use case:
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(lat, lon, 1)
+            
+            if (!addresses.isNullOrEmpty()) {
+                val addr = addresses[0]
+                // Return "Street, Suburb" or similar
+                // getMaxAddressLineIndex is 0-based
+                return if (addr.maxAddressLineIndex >= 0) {
+                     addr.getAddressLine(0)
+                } else {
+                    "${addr.thoroughfare ?: ""}, ${addr.locality ?: ""}".trim(',',' ')
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+    
+    private fun getNominatimAddress(lat: Double, lon: Double): String? {
+        try {
+            val urlStr = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1"
+            val url = java.net.URL(urlStr)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("User-Agent", "FamilyTracker/1.0") // Required by OSM
+            
+            if (connection.responseCode == 200) {
+                val stream = connection.inputStream
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(stream))
+                val response = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    response.append(line)
+                }
+                reader.close()
+                
+                val json = org.json.JSONObject(response.toString())
+                return json.optString("display_name", "")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LocationService", "Nominatim Warning: ${e.message}")
+        }
+        return null
     }
     
     // Fix: Prevent Notification Spam on Startup
@@ -340,6 +437,61 @@ class LocationService : Service() {
             
             historyRef.setValue(point)
         }
+    }
+    
+    // --- DRIVING SAFETY LOGIC ---
+    private var lastSpeed = 0f
+    private var lastSpeedTime = 0L
+    private val SPEEDING_THRESHOLD_MS = 33.3f // ~120 km/h
+    private val BRAKING_THRESHOLD_MSS = 4.5f // 4.5 m/s^2 (Standard harsh braking)
+    private val EVENT_DEBOUNCE_MS = 60 * 1000L // 1 Minute per event type
+    
+    private fun checkDrivingEvents(uid: String, location: Location) {
+        val currentSpeed = location.speed // m/s
+        val currentTime = location.time
+        
+        // 1. SPEEDING CHECK
+        if (currentSpeed > SPEEDING_THRESHOLD_MS) {
+            val lastSpeeding = lastNotificationTime["${uid}_speeding"] ?: 0L
+            if (System.currentTimeMillis() - lastSpeeding > EVENT_DEBOUNCE_MS * 5) { // 5 Min debounce for speeding
+                 lastNotificationTime["${uid}_speeding"] = System.currentTimeMillis()
+                 saveDrivingEvent(uid, "SPEEDING", "${(currentSpeed * 3.6).toInt()} km/h")
+            }
+        }
+        
+        // 2. HARSH BRAKING CHECK
+        // Requirements: Must have been moving fast before (>30km/h) to count as "Harsh"
+        if (lastSpeedTime > 0 && lastSpeed > 8.3f) { // >30km/h
+            val timeDiff = (currentTime - lastSpeedTime) / 1000f // Seconds
+            if (timeDiff > 0 && timeDiff < 10) { // Valid short interval
+                val speedDiff = lastSpeed - currentSpeed // Positive if slowing down
+                val deceleration = speedDiff / timeDiff
+                
+                if (deceleration > BRAKING_THRESHOLD_MSS) {
+                    val lastBraking = lastNotificationTime["${uid}_braking"] ?: 0L
+                    if (System.currentTimeMillis() - lastBraking > EVENT_DEBOUNCE_MS) {
+                        lastNotificationTime["${uid}_braking"] = System.currentTimeMillis()
+                        saveDrivingEvent(uid, "HARSH_BRAKING", "Decel: ${String.format("%.1f", deceleration)} m/s²")
+                    }
+                }
+            }
+        }
+        
+        lastSpeed = currentSpeed
+        lastSpeedTime = currentTime
+    }
+    
+    private fun saveDrivingEvent(uid: String, type: String, value: String) {
+        val ref = FirebaseDatabase.getInstance(DB_URL).getReference("driving_events").child(uid).push()
+        val event = mapOf(
+            "type" to type,
+            "value" to value,
+            "timestamp" to System.currentTimeMillis()
+        )
+        ref.setValue(event)
+        
+        // Optional: Send local notification if it's ME driving (Feedback)
+        // sendHighPriorityNotification("Driving Alert", "$type detected! ($value)")
     }
 
     private fun createNotificationChannel() {
@@ -382,6 +534,11 @@ class LocationService : Service() {
                 wakeLock?.release()
             }
         } catch (e: Exception) {}
+        
+        // SELF-RESURRECTION: Try to restart immediately if killed
+        val restartIntent = Intent("com.wiandurandt.familytracker.RESTART_SERVICE")
+        restartIntent.setClassName(this, "com.wiandurandt.familytracker.receivers.BootReceiver")
+        sendBroadcast(restartIntent)
     }
 
     override fun onBind(intent: Intent?): IBinder? {

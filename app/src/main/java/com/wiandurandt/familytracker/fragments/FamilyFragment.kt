@@ -124,6 +124,8 @@ class FamilyFragment : Fragment() {
         val speed = snapshot.child("speed").getValue(Float::class.java) ?: 0f
         val battery = snapshot.child("batteryLevel").getValue(Int::class.java) ?: -1
         
+        val address = snapshot.child("address").getValue(String::class.java)
+        
         // Status Logic
         val now = System.currentTimeMillis()
         val isOnline = (now - lastUpdated) < (5 * 60 * 1000) // Online if update in last 5 mins
@@ -132,17 +134,31 @@ class FamilyFragment : Fragment() {
         if (isOnline) {
             status = if (!currentPlace.isNullOrEmpty()) {
                 "At $currentPlace"
+            } else if (speed > 200/3.6) {
+                "Flying ✈️ (${(speed*3.6).toInt()} km/h)"
+            } else if (speed > 35/3.6) {
+                "Driving 🚗 (${(speed*3.6).toInt()} km/h)" 
+            } else if (!address.isNullOrEmpty()) {
+                address
+            } else if (speed > 10/3.6) {
+                "Cycling 🚴 (${(speed*3.6).toInt()} km/h)"
+            } else if (speed > 2) {
+                "Walking 🚶 (${(speed*3.6).toInt()} km/h)" 
             } else {
-                if (speed > 200/3.6) "Flying ✈️ (${(speed*3.6).toInt()} km/h)"
-                else if (speed > 35/3.6) "Driving 🚗 (${(speed*3.6).toInt()} km/h)" 
-                else if (speed > 10/3.6) "Cycling 🚴 (${(speed*3.6).toInt()} km/h)"
-                else if (speed > 2) "Walking 🚶 (${(speed*3.6).toInt()} km/h)" 
-                else "Stationary"
+                "Stationary"
             }
         } else {
             // Format time ago (simple)
             val diffMin = (now - lastUpdated) / 60000
-            status = "Last seen ${diffMin}m ago"
+            val timeText = "Last seen ${diffMin}m ago"
+            
+            val locationText = when {
+                !currentPlace.isNullOrEmpty() -> "at $currentPlace"
+                !address.isNullOrEmpty() -> "at $address"
+                else -> ""
+            }
+            
+            status = if (locationText.isNotEmpty()) "$timeText $locationText" else timeText
         }
         
         val member = FamilyAdapter.Member(uid, displayName, status, lastUpdated, profileBase64, isOnline, battery)

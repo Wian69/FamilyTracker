@@ -187,12 +187,38 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun scheduleBackgroundWork() {
+        val workManager = androidx.work.WorkManager.getInstance(this)
+        
+        // 1. Periodic Check (Every 15 mins - Minimum allowed by Android)
+        val periodicRequest = androidx.work.PeriodicWorkRequest.Builder(
+            com.wiandurandt.familytracker.services.KeepAliveWorker::class.java,
+            15, java.util.concurrent.TimeUnit.MINUTES
+        ).build()
+        
+        workManager.enqueueUniquePeriodicWork(
+            "KeepAliveWorker",
+            androidx.work.ExistingPeriodicWorkPolicy.KEEP, // Don't replace if already scheduled
+            periodicRequest
+        )
+        
+        // 2. Immediate Check (Start now)
+        val oneTimeRequest = androidx.work.OneTimeWorkRequest.Builder(
+            com.wiandurandt.familytracker.services.KeepAliveWorker::class.java
+        ).build()
+        workManager.enqueue(oneTimeRequest)
+    }
+
     private fun startLocationService() {
+        // Start Service Directly
         val intent = Intent(this, LocationService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
         }
+        
+        // Schedule Safety Net
+        scheduleBackgroundWork()
     }
 }
