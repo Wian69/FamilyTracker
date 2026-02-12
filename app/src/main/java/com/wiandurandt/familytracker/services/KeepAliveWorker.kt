@@ -10,10 +10,32 @@ class KeepAliveWorker(private val context: Context, workerParams: WorkerParamete
     Worker(context, workerParams) {
 
     override fun doWork(): Result {
+        // 1. Send Heartbeat to Firebase (So usage shows "Online" even if location is off)
+        sendHeartbeat()
+
+        // 2. Restart Service if needed
         if (!isServiceRunning(LocationService::class.java)) {
             restartService()
         }
         return Result.success()
+    }
+
+    private fun sendHeartbeat() {
+        try {
+            val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            if (uid != null) {
+                val ref = com.google.firebase.database.FirebaseDatabase.getInstance("https://familiy-tracker-default-rtdb.firebaseio.com/")
+                    .getReference("users").child(uid)
+                
+                val updates = HashMap<String, Any>()
+                updates["lastUpdated"] = System.currentTimeMillis()
+                // Optional: updates["status"] = "Online (Background)"
+                
+                ref.updateChildren(updates)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun isServiceRunning(serviceClass: Class<*>): Boolean {

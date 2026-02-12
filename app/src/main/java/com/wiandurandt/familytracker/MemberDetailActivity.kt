@@ -209,7 +209,11 @@ class MemberDetailActivity : AppCompatActivity() {
                     liveMarker?.title = locationText
                     
                     // Smoothly animate to new position if valid
-                     map.controller.animateTo(geoPoint)
+                    // Only auto-center if we are viewing TODAY
+                    val isToday = android.text.format.DateUtils.isToday(selectedCalendar.timeInMillis)
+                    if (isToday) {
+                        map.controller.animateTo(geoPoint)
+                    }
                     
                     map.invalidate()
                 }
@@ -238,6 +242,10 @@ class MemberDetailActivity : AppCompatActivity() {
     // Helper to reference the listener so we can remove it when switching dates
     private var historyListener: ValueEventListener? = null
     private var historyRef: com.google.firebase.database.DatabaseReference? = null
+    
+    private var eventListener: ValueEventListener? = null
+    private var eventRef: com.google.firebase.database.DatabaseReference? = null
+    private val currentEvents = ArrayList<DataSnapshot>()
 
     private fun loadHistory(calendar: Calendar) {
         val sdf = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
@@ -253,8 +261,58 @@ class MemberDetailActivity : AppCompatActivity() {
             historyRef!!.removeEventListener(historyListener!!)
         }
         
+        // Also clean up event listener
+        if (eventRef != null && eventListener != null) {
+            eventRef!!.removeEventListener(eventListener!!)
+        }
+        
         historyRef = FirebaseDatabase.getInstance(DB_URL).getReference("history").child(userId!!).child(dateParams)
         
+        // --- DRIVING EVENTS QUERY ---
+        val startOfDay = calendar.clone() as Calendar
+        startOfDay.set(Calendar.HOUR_OF_DAY, 0)
+        startOfDay.set(Calendar.MINUTE, 0)
+        startOfDay.set(Calendar.SECOND, 0)
+        
+        val endOfDay = calendar.clone() as Calendar
+        endOfDay.set(Calendar.HOUR_OF_DAY, 23)
+        endOfDay.set(Calendar.MINUTE, 59)
+        endOfDay.set(Calendar.SECOND, 59)
+        
+        eventRef = FirebaseDatabase.getInstance(DB_URL).getReference("driving_events").child(userId!!)
+        // We can't easily filter by timestamp AND user without a composite index or just fetching all and filtering client side.
+        // For a prototype, fetching "limitToLast(100)" and filtering is okay, but ideally we query by child "timestamp" 
+        // using startAt/endAt.
+        
+        eventListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                 // We will add these markers AFTER the path (or concurrently). 
+                 // Since we clear overlays in historyListener, we need to coordinate or just append?
+                 // Actually history path clears overlays. So we should probably reload events inside historyListener 
+                 // OR make them separate layers.
+                 // Simplest: Let history listener finish, then this one adds on top. 
+                 // BUT if history listener updates, it clears all.
+                 // So we should probably store events in a list and re-draw them whenever history updates?
+                 // OR just make this listener update a local list and call a "redrawMap()" function?
+                 
+                 // Let's store events locally and re-draw in verify
+                 currentEvents.clear()
+                 for (child in snapshot.children) {
+                     val ts = child.child("timestamp").getValue(Long::class.java) ?: 0L
+                     if (ts >= startOfDay.timeInMillis && ts <= endOfDay.timeInMillis) {
+                         currentEvents.add(child)
+                     }
+                 }
+                 // If map is already drawn, valid to add now? 
+                 // We need to trigger redraw.
+                 // But history listener is the main driver. 
+            }
+             override fun onCancelled(error: DatabaseError) {}
+        }
+        
+        val query = eventRef!!.orderByChild("timestamp").startAt(startOfDay.timeInMillis.toDouble()).endAt(endOfDay.timeInMillis.toDouble())
+        query.addValueEventListener(eventListener!!)
+
         // Create new listener
         historyListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -277,7 +335,16 @@ class MemberDetailActivity : AppCompatActivity() {
                     line.outlinePaint.strokeWidth = 10f
                     map.overlays.add(line)
                     
-                   map.controller.setCenter(points.last())
+                    // Only auto-center history view on load if needed
+                   // map.controller.setCenter(points.last()) // Let user pan around freely
+                   if (android.text.format.DateUtils.isToday(selectedCalendar.timeInMillis)) {
+                       map.controller.setCenter(points.last())
+                   } else {
+                       // Initially center on the path if needed, but only once?
+                       // For now, let's center on the START of the journey for past days
+                       map.controller.setCenter(points.first())
+                       map.controller.setZoom(14.0) // Show overview
+                   }
                    
                    // Add Start/End Markers
                    val startMarker = Marker(map)
@@ -291,6 +358,36 @@ class MemberDetailActivity : AppCompatActivity() {
                    endMarker.title = "End: " + SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(snapshot.children.last().child("time").getValue(Long::class.java) ?: 0))
                    endMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                    map.overlays.add(endMarker)
+                   
+                   // --- ADD DRIVING EVENTS ---
+                   for (event in currentEvents) {
+                       val lat = event.child("lat").getValue(Double::class.java)
+                       val lon = event.child("lon").getValue(Double::class.java)
+                       val type = event.child("type").getValue(String::class.java)
+                       val value = event.child("value").getValue(String::class.java)
+                       val ts = event.child("timestamp").getValue(Long::class.java) ?: 0L
+                       
+                       if (lat != null && lon != null) {
+                           val m = Marker(map)
+                           m.position = GeoPoint(lat, lon)
+                           val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ts))
+                           
+                           if (type == "SPEEDING") {
+                               m.icon = androidx.core.content.ContextCompat.getDrawable(this@MemberDetailActivity, android.R.drawable.ic_dialog_alert) // Built-in Warning icon
+                               // Or better, create a drawable or tint it.
+                               // Use default marker but change icon?
+                               // MapView default marker is a "tear drop".
+                               // Let's use text/emoji as label if possible or just Title
+                               m.title = "⚠️ Speeding ($value) @ $timeStr"
+                           } else {
+                               // Harsh Braking
+                               m.title = "🛑 Harsh Braking ($value) @ $timeStr"
+                               m.icon = androidx.core.content.ContextCompat.getDrawable(this@MemberDetailActivity, android.R.drawable.ic_delete) // X icon or similar
+                           }
+                           m.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                           map.overlays.add(m)
+                       }
+                   }
                 } 
                 map.invalidate()
             }

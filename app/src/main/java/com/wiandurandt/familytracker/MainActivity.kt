@@ -69,7 +69,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        checkPermissions(false) 
+        checkPermissions(false)
+        scheduleBackgroundWork()
     }
 
     private fun setupBottomNavigation() {
@@ -157,15 +158,19 @@ class MainActivity : AppCompatActivity() {
             val powerManager = getSystemService(android.os.PowerManager::class.java)
             val packageName = packageName
             if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                // Check if we already asked recently to avoid nagging? 
+                // For now, let's just ask.
                 android.app.AlertDialog.Builder(this)
-                    .setTitle("Disable Battery Optimization")
-                    .setMessage("To ensure location updates work when the screen is off, please allow the app to ignore battery optimizations.")
-                    .setPositiveButton("Allow") { _, _ ->
+                    .setTitle("Keep App Alive")
+                    .setMessage("To ensure location updates work when the screen is off, please allow the app to run in the background without restrictions.")
+                    .setPositiveButton("Fix Now") { _, _ ->
                         val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
                         intent.data = android.net.Uri.parse("package:$packageName")
                         try {
                             startActivity(intent)
-                        } catch (e: Exception) {}
+                        } catch (e: Exception) {
+                            Toast.makeText(this, "Could not open settings", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     .setNegativeButton("Later", null)
                     .show()

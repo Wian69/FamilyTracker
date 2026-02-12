@@ -35,10 +35,10 @@ class LocationService : Service() {
     override fun onCreate() {
         super.onCreate()
         
-        // 1. Acquire WakeLock to keep CPU running
-        val powerManager = getSystemService(android.os.PowerManager::class.java)
-        wakeLock = powerManager.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "FamilyTracker::LocationWakeLock")
-        wakeLock?.acquire()
+        // 1. WakeLock Removed to save battery
+        // val powerManager = getSystemService(android.os.PowerManager::class.java)
+        // wakeLock = powerManager.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "FamilyTracker::LocationWakeLock")
+        // wakeLock?.acquire()
         
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         
@@ -161,7 +161,10 @@ class LocationService : Service() {
         }
         
         if (lat != null && lon != null) {
-            checkGeofenceEntry(userId, userName, lat, lon)
+            // For other users, we don't have accuracy info in the snapshot easily unless we add it.
+            // But we can check if the position is "sane" or just rely on the existing logic
+            // We'll trust the reported location for now, as we can't filter their bad GPS data here easily without protocol changes.
+            checkGeofenceEntry(userId, userName, lat, lon, null)
         }
     }
 
@@ -182,9 +185,16 @@ class LocationService : Service() {
     
     private val userInsideState = ConcurrentHashMap<String, Boolean>() // Key: "userId_placeId" -> isInside
 
-    private fun checkGeofenceEntry(userId: String, userName: String, lat: Double, lon: Double) {
+    private fun checkGeofenceEntry(userId: String, userName: String, lat: Double, lon: Double, accuracy: Float?) {
         val prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(this)
         if (!prefs.getBoolean("notifications_enabled", true)) return
+
+        // 1. Accuracy Filter (Only applies if we have it, i.e., for SELF)
+        // If accuracy is poor (> 200m), ignore this point for geofencing to prevent "teleporting"
+        if (accuracy != null && accuracy > 200) {
+             android.util.Log.d("GeofenceCheck", "Skipping Geofence check for $userName due to poor accuracy: ${accuracy}m")
+             return
+        }
 
         val result = FloatArray(1)
         
@@ -194,7 +204,7 @@ class LocationService : Service() {
             val key = "${userId}_${placeId}"
             val isInside = distanceInMeters <= place.radius
             
-            android.util.Log.d("GeofenceCheck", "User:$userName Place:${place.name} Dist:${distanceInMeters.toInt()}m isInside:$isInside")
+            // android.util.Log.d("GeofenceCheck", "User:$userName Place:${place.name} Dist:${distanceInMeters.toInt()}m isInside:$isInside")
             
             val wasInside = userInsideState[key] ?: false
             
@@ -219,8 +229,9 @@ class LocationService : Service() {
             }
             // 2. EXIT DETECTED (Inside -> Outside)
             else if (!isInside && wasInside) {
-                // If they move > 30m outside the radius to confirm exit (increased buffer to prevent jitter)
-                if (distanceInMeters > place.radius + 100) {
+                // If they move > 100m outside the radius to confirm exit (hysteresis buffer)
+                // AND confirm we are really far enough to avoid "edge jitter"
+                if (distanceInMeters > place.radius + 150) {
                      processedInitialState[key] = true // Mark as processed
                      
                      if (shouldNotify(key)) {
@@ -272,9 +283,9 @@ class LocationService : Service() {
     }
 
     private fun startLocationUpdates() {
-        // High accuracy, faster updates for "Live" feel
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
-            .setMinUpdateIntervalMillis(2000)
+        // Reduced frequency to save battery (Every 15s instead of 3s)
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 15000)
+            .setMinUpdateIntervalMillis(10000)
             .build()
 
         try {
@@ -309,7 +320,8 @@ class LocationService : Service() {
         // CHECK SELF GEOFENCE
         val myEmail = FirebaseAuth.getInstance().currentUser?.email ?: "Me"
         val myName = myEmail.substringBefore("@").replaceFirstChar { it.uppercase() }
-        checkGeofenceEntry(uid, myName, location.latitude, location.longitude)
+        // Pass accuracy for self
+        checkGeofenceEntry(uid, myName, location.latitude, location.longitude, location.accuracy)
         
         // ADDRESS UPDATE Logic
         // If we are NOT known to be inside a place, fetch the street address
@@ -452,11 +464,11 @@ class LocationService : Service() {
         
         // 1. SPEEDING CHECK
         if (currentSpeed > SPEEDING_THRESHOLD_MS) {
-            val lastSpeeding = lastNotificationTime["${uid}_speeding"] ?: 0L
-            if (System.currentTimeMillis() - lastSpeeding > EVENT_DEBOUNCE_MS * 5) { // 5 Min debounce for speeding
-                 lastNotificationTime["${uid}_speeding"] = System.currentTimeMillis()
-                 saveDrivingEvent(uid, "SPEEDING", "${(currentSpeed * 3.6).toInt()} km/h")
-            }
+             val lastSpeeding = lastNotificationTime["${uid}_speeding"] ?: 0L
+             if (System.currentTimeMillis() - lastSpeeding > EVENT_DEBOUNCE_MS * 5) { // 5 Min debounce for speeding
+                  lastNotificationTime["${uid}_speeding"] = System.currentTimeMillis()
+                  saveDrivingEvent(uid, "SPEEDING", "${(currentSpeed * 3.6).toInt()} km/h", location.latitude, location.longitude)
+             }
         }
         
         // 2. HARSH BRAKING CHECK
@@ -471,7 +483,7 @@ class LocationService : Service() {
                     val lastBraking = lastNotificationTime["${uid}_braking"] ?: 0L
                     if (System.currentTimeMillis() - lastBraking > EVENT_DEBOUNCE_MS) {
                         lastNotificationTime["${uid}_braking"] = System.currentTimeMillis()
-                        saveDrivingEvent(uid, "HARSH_BRAKING", "Decel: ${String.format("%.1f", deceleration)} m/s²")
+                        saveDrivingEvent(uid, "HARSH_BRAKING", "Decel: ${String.format("%.1f", deceleration)} m/s²", location.latitude, location.longitude)
                     }
                 }
             }
@@ -481,11 +493,13 @@ class LocationService : Service() {
         lastSpeedTime = currentTime
     }
     
-    private fun saveDrivingEvent(uid: String, type: String, value: String) {
+    private fun saveDrivingEvent(uid: String, type: String, value: String, lat: Double, lon: Double) {
         val ref = FirebaseDatabase.getInstance(DB_URL).getReference("driving_events").child(uid).push()
         val event = mapOf(
             "type" to type,
             "value" to value,
+            "lat" to lat,
+            "lon" to lon,
             "timestamp" to System.currentTimeMillis()
         )
         ref.setValue(event)
